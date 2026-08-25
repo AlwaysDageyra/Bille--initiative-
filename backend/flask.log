@@ -1,0 +1,45 @@
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 108-205-281
+127.0.0.1 - - [25/Aug/2026 18:53:23] "OPTIONS /api/auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:23] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:24] "POST /api/auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:24] "OPTIONS /api/correspondence HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:24] "GET /api/correspondence HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:24] "OPTIONS /api/correspondence HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:25] "GET /api/correspondence HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:32] "OPTIONS /api/auth/me HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:32] "OPTIONS /api/auth/me HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:33] "GET /api/auth/me HTTP/1.1" 401 -
+127.0.0.1 - - [25/Aug/2026 18:53:33] "GET /api/auth/me HTTP/1.1" 401 -
+127.0.0.1 - - [25/Aug/2026 18:53:40] "OPTIONS /api/correspondence/3 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:40] "OPTIONS /api/correspondence/3 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:40] "OPTIONS /api/departments HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:40] "OPTIONS /api/departments HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:40] "GET /api/correspondence/3 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:41] "GET /api/departments HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:41] "GET /api/correspondence/3 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:53:41] "GET /api/departments HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:04] "OPTIONS /api/auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:05] "POST /api/auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:05] "OPTIONS /api/correspondence HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:05] "OPTIONS /api/correspondence HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:05] "GET /api/correspondence HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:06] "GET /api/correspondence HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:14] "OPTIONS /api/correspondence/3 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:14] "GET /api/correspondence/3 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:14] "OPTIONS /api/departments HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:14] "OPTIONS /api/correspondence/3 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:14] "OPTIONS /api/departments HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:15] "GET /api/departments HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:15] "GET /api/correspondence/3 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:15] "GET /api/departments HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:20] "OPTIONS /api/correspondence HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:20] "OPTIONS /api/correspondence HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:20] "GET /api/correspondence HTTP/1.1" 200 -
+127.0.0.1 - - [25/Aug/2026 18:54:20] "GET /api/correspondence HTTP/1.1" 200 -
