@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # GovFlow AI
 
 An AI-assisted correspondence and action-management system for government offices. Staff and NGOs submit letters/memos/notices as documents; a local LLM (Ollama) extracts structured information and recommends the responsible department; a coordinator confirms the routing; the receiving department manager actions it. Every step is logged to an audit trail.
@@ -122,3 +123,7 @@ frontend/
     components/       Layout (sidebar), Feedback (toasts/confirm), ui.jsx (primitives), TableControls
     utils/            priority.js (sorting/overdue), csv.js (export)
 ```
+=======
+# Bille--initiative-
+this repository is for the 10 days of the worshop
+>>>>>>> 6d4e402ffe39fbffc7ee1119c63b3d2e5ba8de80
