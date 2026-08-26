@@ -15,6 +15,8 @@ export function Button({ children, variant = "primary", className = "", ...props
     secondary:
       "bg-white text-ink-900 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 hover:-translate-y-0.5 active:translate-y-0",
     ghost: "bg-transparent text-slate-500 hover:bg-slate-100",
+    danger:
+      "bg-red-600 text-white shadow-md shadow-red-600/25 hover:bg-red-500 hover:-translate-y-0.5 active:translate-y-0",
   };
   return (
     <button

@@ -1,4 +1,4 @@
-import { Search, ChevronLeft, ChevronRight, AlertOctagon } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, AlertOctagon, Gauge } from "lucide-react";
 
 export function SearchInput({ value, onChange, placeholder = "Search..." }) {
   return (
@@ -61,6 +61,48 @@ export function OverdueTag() {
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600 ring-1 ring-inset ring-red-200">
       <AlertOctagon size={11} /> Overdue
+    </span>
+  );
+}
+
+export const URGENCY_STYLES = {
+  High: { border: "border-l-red-500", dot: "bg-red-500", chip: "bg-red-50 text-red-700 ring-red-200" },
+  Medium: { border: "border-l-amber-500", dot: "bg-amber-500", chip: "bg-amber-50 text-amber-700 ring-amber-200" },
+  Low: { border: "border-l-emerald-500", dot: "bg-emerald-500", chip: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+};
+export const DEFAULT_URGENCY_STYLE = { border: "border-l-slate-300", dot: "bg-slate-300", chip: "bg-slate-100 text-slate-500 ring-slate-200" };
+
+export function UrgencyChip({ urgency }) {
+  const style = URGENCY_STYLES[urgency] || DEFAULT_URGENCY_STYLE;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${style.chip}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+      {urgency || "Unrated"}
+    </span>
+  );
+}
+
+export function Avatar({ name, size = "md" }) {
+  const initials = (name || "?").trim().slice(0, 2).toUpperCase();
+  const sizes = { md: "h-10 w-10 text-sm", lg: "h-14 w-14 text-base" };
+  return (
+    <span className={`grid flex-none place-items-center rounded-full bg-ink-900 font-bold text-white ${sizes[size]}`}>
+      {initials}
+    </span>
+  );
+}
+
+export const CONFIDENCE_STYLES = {
+  High: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  Medium: "bg-amber-50 text-amber-700 ring-amber-200",
+  Low: "bg-red-50 text-red-700 ring-red-200",
+};
+
+export function ConfidenceChip({ confidence }) {
+  if (!confidence) return <span className="text-sm text-slate-400">—</span>;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${CONFIDENCE_STYLES[confidence] || "bg-slate-100 text-slate-500 ring-slate-200"}`}>
+      <Gauge size={11} /> {confidence}
     </span>
   );
 }

@@ -28,6 +28,41 @@ from app.utils import role_required
 
 bp = Blueprint("correspondence", __name__, url_prefix="/api/correspondence")
 
+EDITABLE_FIELDS = [
+    "document_type",
+    "sender",
+    "recipient",
+    "department_mentioned",
+    "reference_number",
+    "document_date",
+    "subject",
+    "main_request",
+    "required_action",
+    "deadline",
+    "urgency",
+    "policy_procedure_needed",
+]
+
+# A submitter may only edit/delete their own letter before anyone downstream
+# (coordinator/dept manager) has acted on it, so the audit trail stays intact
+# for everyone once it's routed.
+PRE_ROUTING_STATUSES = (STATUS_SUBMITTED, STATUS_AI_ANALYZED, STATUS_PENDING_REVIEW)
+
+
+def _save_uploaded_file(uploaded_file, file_bytes):
+    stored_filename = f"{uuid.uuid4().hex}_{secure_filename(uploaded_file.filename)}"
+    with open(os.path.join(current_app.config["UPLOAD_FOLDER"], stored_filename), "wb") as f:
+        f.write(file_bytes)
+    return stored_filename
+
+
+def _delete_stored_file(stored_filename):
+    if not stored_filename:
+        return
+    path = os.path.join(current_app.config["UPLOAD_FOLDER"], stored_filename)
+    if os.path.exists(path):
+        os.remove(path)
+
 
 def _log(correspondence_id, action, note=None, actor_id=None):
     entry = ActionHistory(
@@ -72,9 +107,7 @@ def create_correspondence():
     except ExtractionError as exc:
         return jsonify({"error": str(exc)}), 400
 
-    stored_filename = f"{uuid.uuid4().hex}_{secure_filename(uploaded_file.filename)}"
-    with open(os.path.join(current_app.config["UPLOAD_FOLDER"], stored_filename), "wb") as f:
-        f.write(file_bytes)
+    stored_filename = _save_uploaded_file(uploaded_file, file_bytes)
 
     correspondence = Correspondence(
         submitter_id=current_user.id,
@@ -127,6 +160,89 @@ def get_correspondence(correspondence_id):
     return jsonify(result)
 
 
+@bp.patch("/<int:correspondence_id>")
+@login_required
+@role_required(ROLE_COORDINATOR)
+def update_fields(correspondence_id):
+    c = Correspondence.query.get_or_404(correspondence_id)
+
+    if c.status != STATUS_PENDING_REVIEW:
+        return jsonify({"error": "Fields can only be edited while pending review"}), 400
+
+    data = request.get_json(silent=True) or {}
+    changed = []
+    for key in EDITABLE_FIELDS:
+        if key in data:
+            new_value = data[key] or None
+            if getattr(c, key) != new_value:
+                setattr(c, key, new_value)
+                changed.append(key)
+
+    if changed:
+        _log(correspondence_id, "fields_edited", note=f"Updated: {', '.join(changed)}")
+        db.session.commit()
+
+    return jsonify(c.to_dict())
+
+
+@bp.put("/<int:correspondence_id>")
+@login_required
+@role_required(ROLE_SUBMITTER)
+def replace_correspondence(correspondence_id):
+    c = Correspondence.query.get_or_404(correspondence_id)
+
+    if c.submitter_id != current_user.id:
+        return jsonify({"error": "Forbidden"}), 403
+    if c.status not in PRE_ROUTING_STATUSES:
+        return jsonify({"error": "This can only be edited before it's routed to a department"}), 400
+
+    uploaded_file = request.files.get("file")
+    if not uploaded_file or not uploaded_file.filename:
+        return jsonify({"error": "A document file (PDF, DOCX, or TXT) is required"}), 400
+
+    file_bytes = uploaded_file.read()
+    try:
+        raw_text = extract_text(uploaded_file.filename, file_bytes)
+    except ExtractionError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    _delete_stored_file(c.stored_filename)
+    c.stored_filename = _save_uploaded_file(uploaded_file, file_bytes)
+    c.source_filename = uploaded_file.filename
+    c.raw_text = raw_text
+
+    # Clear the previous document's AI results so stale data can't linger
+    # if re-analysis of the new document fails.
+    for key in EDITABLE_FIELDS:
+        setattr(c, key, None)
+    c.ai_confidence = None
+    c.recommended_department_id = None
+
+    _log(correspondence_id, "resubmitted", note=f"Replaced document with {uploaded_file.filename}")
+    _run_ai_analysis(c)
+
+    db.session.commit()
+    return jsonify(c.to_dict())
+
+
+@bp.delete("/<int:correspondence_id>")
+@login_required
+@role_required(ROLE_SUBMITTER)
+def delete_correspondence(correspondence_id):
+    c = Correspondence.query.get_or_404(correspondence_id)
+
+    if c.submitter_id != current_user.id:
+        return jsonify({"error": "Forbidden"}), 403
+    if c.status not in PRE_ROUTING_STATUSES:
+        return jsonify({"error": "This can only be deleted before it's routed to a department"}), 400
+
+    _delete_stored_file(c.stored_filename)
+    ActionHistory.query.filter_by(correspondence_id=correspondence_id).delete()
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
 @bp.get("/<int:correspondence_id>/file")
 @login_required
 def get_correspondence_file(correspondence_id):
@@ -162,6 +278,10 @@ def reanalyze(correspondence_id):
 @role_required(ROLE_COORDINATOR)
 def route_correspondence(correspondence_id):
     c = Correspondence.query.get_or_404(correspondence_id)
+
+    if c.status not in (STATUS_PENDING_REVIEW, STATUS_ROUTED):
+        return jsonify({"error": "Cannot route/re-route once the department has started work on this"}), 400
+
     data = request.get_json(silent=True) or {}
 
     department_id = data.get("department_id")
@@ -171,6 +291,7 @@ def route_correspondence(correspondence_id):
     if not department:
         return jsonify({"error": "Invalid department_id"}), 400
 
+    was_reroute = c.status == STATUS_ROUTED
     agreed_with_ai = department_id == c.recommended_department_id
 
     c.final_department_id = department_id
@@ -179,7 +300,10 @@ def route_correspondence(correspondence_id):
     c.status = STATUS_ROUTED
     c.routed_at = utcnow()
 
-    action = "routed_confirmed_ai" if agreed_with_ai else "routed_overridden_ai"
+    if was_reroute:
+        action = "rerouted"
+    else:
+        action = "routed_confirmed_ai" if agreed_with_ai else "routed_overridden_ai"
     _log(correspondence_id, action, note=f"Sent to {department.name}" + (f" - {note}" if note else ""))
 
     db.session.commit()
@@ -207,6 +331,51 @@ def update_status(correspondence_id):
         c.dept_manager_note = note
 
     _log(correspondence_id, f"status_{new_status}", note=note)
+
+    db.session.commit()
+    return jsonify(c.to_dict())
+
+
+@bp.post("/<int:correspondence_id>/bounce")
+@login_required
+@role_required(ROLE_DEPT_MANAGER)
+def bounce_back(correspondence_id):
+    c = Correspondence.query.get_or_404(correspondence_id)
+
+    if c.final_department_id != current_user.department_id:
+        return jsonify({"error": "Forbidden"}), 403
+    if c.status not in (STATUS_ROUTED, STATUS_IN_PROGRESS):
+        return jsonify({"error": "This can only be bounced back while routed or in progress"}), 400
+
+    data = request.get_json(silent=True) or {}
+    note = (data.get("note") or "").strip()
+    if not note:
+        return jsonify({"error": "Please explain why this is being sent back"}), 400
+
+    c.status = STATUS_PENDING_REVIEW
+    c.final_department_id = None
+
+    _log(correspondence_id, "bounced_back", note=note)
+
+    db.session.commit()
+    return jsonify(c.to_dict())
+
+
+@bp.post("/<int:correspondence_id>/followup")
+@login_required
+@role_required(ROLE_SUBMITTER)
+def add_followup(correspondence_id):
+    c = Correspondence.query.get_or_404(correspondence_id)
+
+    if c.submitter_id != current_user.id:
+        return jsonify({"error": "Forbidden"}), 403
+
+    data = request.get_json(silent=True) or {}
+    note = (data.get("note") or "").strip()
+    if not note:
+        return jsonify({"error": "Follow-up note cannot be empty"}), 400
+
+    _log(correspondence_id, "submitter_followup", note=note)
 
     db.session.commit()
     return jsonify(c.to_dict())

@@ -1,75 +1,30 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Inbox, Clock, Send, CheckCircle2, UploadCloud, FileText, X, SendHorizonal } from "lucide-react";
+import {
+  Inbox, Clock, Send, CheckCircle2, ArrowRight, UploadCloud, Sparkles,
+  ScanSearch, ClipboardCheck, FileText, Route,
+} from "lucide-react";
 import { api } from "../api";
-import { useToast } from "../components/Feedback";
-import StatusBadge, { STATUS_OPTIONS } from "../components/StatusBadge";
-import { Card, Button, EmptyState, StatCard } from "../components/ui";
-import { SearchInput, Select, Pagination, usePagedResult } from "../components/TableControls";
+import { useAuth } from "../context/AuthContext";
+import { Card, StatCard, EmptyState } from "../components/ui";
+import { Avatar } from "../components/TableControls";
+import StatusBadge from "../components/StatusBadge";
 
-const PAGE_SIZE = 8;
-
-const ALLOWED_EXTENSIONS = ["pdf", "docx", "txt"];
-const MAX_SIZE_BYTES = 10 * 1024 * 1024;
-
-function validateFile(file) {
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
-    return "Unsupported file type. Please upload a PDF, DOCX, or TXT file.";
-  }
-  if (file.size > MAX_SIZE_BYTES) {
-    return "File is too large. Maximum upload size is 10 MB.";
-  }
-  return null;
-}
+const STEPS = [
+  { icon: UploadCloud, title: "You submit", text: "Upload a letter, memo, or notice as a PDF, DOCX, or TXT file." },
+  { icon: ScanSearch, title: "AI analyzes", text: "Ollama extracts the subject, sender, deadline, and recommends a department." },
+  { icon: ClipboardCheck, title: "Coordinator reviews", text: "A coordinator confirms or corrects the AI's recommendation." },
+  { icon: Route, title: "Routed for action", text: "The right department picks it up and works it to closure." },
+];
 
 export default function SubmitterDashboard() {
-  const toast = useToast();
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
-  const [file, setFile] = useState(null);
-  const [dragActive, setDragActive] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [page, setPage] = useState(1);
-  const inputRef = useRef(null);
-
-  const load = () => api.listCorrespondence().then(setItems);
 
   useEffect(() => {
-    load();
+    api.listCorrespondence().then(setItems);
   }, []);
-
-  const pickFile = (candidate) => {
-    if (!candidate) return;
-    const validationError = validateFile(candidate);
-    if (validationError) {
-      setError(validationError);
-      setFile(null);
-      return;
-    }
-    setError("");
-    setFile(candidate);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!file) return;
-    setSubmitting(true);
-    setError("");
-    try {
-      await api.createCorrespondence(file);
-      setFile(null);
-      await load();
-      toast.success("Correspondence submitted and analyzed.");
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const stats = {
     total: items.length,
@@ -78,26 +33,30 @@ export default function SubmitterDashboard() {
     closed: items.filter((c) => c.status === "closed").length,
   };
 
-  const filtered = useMemo(() => {
-    return items.filter((c) => {
-      if (statusFilter && c.status !== statusFilter) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        const haystack = `${c.subject || ""} ${c.source_filename || ""}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [items, statusFilter, search]);
-
-  const { pageItems, pageCount, safePage } = usePagedResult(filtered, page, PAGE_SIZE);
+  const recent = items.slice(0, 5);
 
   return (
     <div>
-      <div className="mb-7">
-        <h1 className="text-2xl font-extrabold tracking-tight text-ink-900">My Submissions</h1>
-        <p className="mt-1 text-sm text-slate-500">Upload correspondence and track it through review and routing.</p>
-      </div>
+      <Card className="relative mb-8 overflow-hidden bg-gradient-to-br from-ink-950 via-ink-900 to-ink-800 p-7 text-white">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-gold-500/20 blur-3xl" />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
+              <Sparkles size={13} /> GovFlow AI
+            </p>
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight">Welcome back, {user.username}</h1>
+            <p className="mt-1 max-w-md text-sm text-slate-400">
+              Track every letter you've submitted and see exactly where it stands in the review process.
+            </p>
+          </div>
+          <Link
+            to="/submissions"
+            className="inline-flex flex-none items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-gold-400 to-gold-500 px-5 py-3 text-sm font-semibold text-ink-950 shadow-md shadow-gold-500/25 transition hover:-translate-y-0.5 hover:shadow-lg"
+          >
+            <UploadCloud size={16} /> Submit New Correspondence
+          </Link>
+        </div>
+      </Card>
 
       <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard icon={Inbox} label="Total submitted" value={stats.total} accent="gold" delay={0} />
@@ -106,117 +65,63 @@ export default function SubmitterDashboard() {
         <StatCard icon={CheckCircle2} label="Closed" value={stats.closed} accent="emerald" delay={0.15} />
       </div>
 
-      <Card className="mb-8 p-6">
-        <h2 className="mb-3 font-bold text-ink-900">Submit new correspondence</h2>
-        <form onSubmit={handleSubmit}>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".pdf,.docx,.txt"
-            className="hidden"
-            onChange={(e) => pickFile(e.target.files?.[0])}
-          />
-
-          {!file ? (
-            <div
-              onClick={() => inputRef.current?.click()}
-              onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragActive(false);
-                pickFile(e.dataTransfer.files?.[0]);
-              }}
-              className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors ${
-                dragActive ? "border-gold-500 bg-gold-500/5" : "border-slate-300 hover:border-gold-400 hover:bg-slate-50"
-              }`}
-            >
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-gold-500/10 text-gold-600">
-                <UploadCloud size={22} />
-              </span>
-              <p className="mt-3 text-sm font-semibold text-ink-900">Click to upload or drag and drop</p>
-              <p className="mt-1 text-xs text-slate-400">PDF, DOCX, or TXT &middot; Max 10 MB</p>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-bold text-ink-900">Recent Submissions</h2>
+            <Link to="/submissions" className="inline-flex items-center gap-1 text-sm font-semibold text-gold-600 hover:text-gold-500">
+              View all <ArrowRight size={14} />
+            </Link>
+          </div>
+          <Card className="overflow-hidden">
+            <div className="divide-y divide-slate-100">
+              {recent.map((item, i) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: Math.min(i * 0.05, 0.3) }}
+                  className="flex items-center gap-3.5 p-4"
+                >
+                  <Avatar name={item.subject} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-ink-900">{item.subject || <em className="font-normal text-slate-400">(pending analysis)</em>}</p>
+                    <p className="mt-0.5 truncate text-xs text-slate-400">
+                      {item.source_filename && (
+                        <span className="inline-flex items-center gap-1"><FileText size={11} /> {item.source_filename}</span>
+                      )}
+                    </p>
+                  </div>
+                  <StatusBadge status={item.status} />
+                  <Link to={`/correspondence/${item.id}`} className="flex-none text-slate-400 transition hover:text-gold-600">
+                    <ArrowRight size={16} />
+                  </Link>
+                </motion.div>
+              ))}
             </div>
-          ) : (
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-gold-500/15 text-gold-600">
-                  <FileText size={16} />
+            {recent.length === 0 && (
+              <EmptyState icon={Inbox} title="No submissions yet" subtitle="Submit your first letter to see it appear here." />
+            )}
+          </Card>
+        </div>
+
+        <div>
+          <h2 className="mb-4 font-bold text-ink-900">How It Works</h2>
+          <Card className="divide-y divide-slate-100">
+            {STEPS.map((step, i) => (
+              <div key={step.title} className="flex items-start gap-3.5 p-4">
+                <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-gold-500/10 text-gold-600">
+                  <step.icon size={16} />
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink-900">{file.name}</p>
-                  <p className="text-xs text-slate-400">{(file.size / 1024).toFixed(0)} KB</p>
+                  <p className="text-sm font-semibold text-ink-900">{i + 1}. {step.title}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{step.text}</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => { setFile(null); if (inputRef.current) inputRef.current.value = ""; }}
-                className="grid h-7 w-7 flex-none place-items-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
-                aria-label="Remove file"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          )}
-
-          {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
-
-          <Button type="submit" disabled={submitting || !file} className="mt-4">
-            <SendHorizonal size={16} />
-            {submitting ? "Analyzing with AI (this can take up to a minute)..." : "Submit"}
-          </Button>
-        </form>
-      </Card>
-
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search subject, file..." />
-        <Select value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }} placeholder="All statuses" options={STATUS_OPTIONS} />
-      </div>
-
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-5 py-3">Subject</th>
-                <th className="px-5 py-3">File</th>
-                <th className="px-5 py-3">Recommended Dept</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Submitted</th>
-                <th className="px-5 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageItems.map((c, i) => (
-                <motion.tr
-                  key={c.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.4) }}
-                  className="border-b border-slate-50 transition-colors last:border-0 hover:bg-slate-50/80"
-                >
-                  <td className="px-5 py-3.5 font-medium text-ink-900">{c.subject || <em className="font-normal text-slate-400">(pending analysis)</em>}</td>
-                  <td className="px-5 py-3.5 text-slate-500">{c.source_filename || "—"}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{c.recommended_department_name || "—"}</td>
-                  <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
-                  <td className="px-5 py-3.5 text-slate-500">{new Date(c.created_at).toLocaleString()}</td>
-                  <td className="px-5 py-3.5">
-                    <Link to={`/correspondence/${c.id}`} className="font-semibold text-gold-600 hover:text-gold-500">View</Link>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <EmptyState
-              icon={Inbox}
-              title={items.length === 0 ? "No submissions yet" : "No matches"}
-              subtitle={items.length === 0 ? "Upload a letter or memo above to get started." : "Try a different search or filter."}
-            />
-          )}
-          <Pagination page={safePage} pageCount={pageCount} onChange={setPage} total={filtered.length} pageSize={PAGE_SIZE} />
+            ))}
+          </Card>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

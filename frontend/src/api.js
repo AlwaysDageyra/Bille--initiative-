@@ -35,9 +35,30 @@ export const api = {
     formData.append("file", file);
     return request("/correspondence", { method: "POST", body: formData });
   },
+  replaceCorrespondence: (id, file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request(`/correspondence/${id}`, { method: "PUT", body: formData });
+  },
+  deleteCorrespondence: (id) => request(`/correspondence/${id}`, { method: "DELETE" }),
   routeCorrespondence: (id, department_id, note) =>
     request(`/correspondence/${id}/route`, { method: "POST", body: JSON.stringify({ department_id, note }) }),
   reanalyze: (id) => request(`/correspondence/${id}/reanalyze`, { method: "POST" }),
   updateStatus: (id, status, note) =>
     request(`/correspondence/${id}/status`, { method: "POST", body: JSON.stringify({ status, note }) }),
+  updateFields: (id, fields) =>
+    request(`/correspondence/${id}`, { method: "PATCH", body: JSON.stringify(fields) }),
+  bounceBack: (id, note) =>
+    request(`/correspondence/${id}/bounce`, { method: "POST", body: JSON.stringify({ note }) }),
+  addFollowup: (id, note) =>
+    request(`/correspondence/${id}/followup`, { method: "POST", body: JSON.stringify({ note }) }),
+
+  changePassword: (current_password, new_password) =>
+    request("/auth/change-password", { method: "POST", body: JSON.stringify({ current_password, new_password }) }),
+
+  adminListUsers: () => request("/admin/users"),
+  adminCreateUser: (payload) => request("/admin/users", { method: "POST", body: JSON.stringify(payload) }),
+  adminUpdateUser: (id, payload) => request(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  adminCreateDepartment: (payload) => request("/admin/departments", { method: "POST", body: JSON.stringify(payload) }),
+  adminUpdateDepartment: (id, payload) => request(`/admin/departments/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 };

@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { LayoutDashboard, LogOut, Sparkles, Inbox, ClipboardCheck, Building2, BarChart3 } from "lucide-react";
+import {
+  LayoutDashboard, LogOut, Sparkles, Inbox, ClipboardCheck, Building2,
+  BarChart3, Settings, Users, ShieldCheck,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api";
 import { PageTransition } from "./ui";
@@ -10,6 +13,7 @@ const ROLE_META = {
   submitter: { label: "Submitter (NGO)", icon: Inbox },
   coordinator: { label: "Coordinator", icon: ClipboardCheck },
   dept_manager: { label: "Department Manager", icon: Building2 },
+  admin: { label: "Admin", icon: ShieldCheck },
 };
 
 function NavLink({ to, active, children }) {
@@ -30,12 +34,16 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(0);
+  const [newRoutedCount, setNewRoutedCount] = useState(0);
 
   useEffect(() => {
-    if (user?.role !== "coordinator") return;
+    if (user?.role !== "coordinator" && user?.role !== "dept_manager") return;
     api
       .listCorrespondence()
-      .then((items) => setPendingCount(items.filter((c) => c.status === "pending_coordinator_review").length))
+      .then((items) => {
+        setPendingCount(items.filter((c) => c.status === "pending_coordinator_review").length);
+        setNewRoutedCount(items.filter((c) => c.status === "routed").length);
+      })
       .catch(() => {});
   }, [user?.role, location.pathname]);
 
@@ -63,27 +71,57 @@ export default function Layout({ children }) {
         </div>
 
         <nav className="flex-1 space-y-1 px-3">
-          <NavLink to="/dashboard" active={location.pathname === "/dashboard"}>
-            <LayoutDashboard size={17} />
-            Dashboard
-          </NavLink>
-          {user?.role === "coordinator" && (
-            <NavLink to="/queue" active={location.pathname === "/queue"}>
-              <ClipboardCheck size={17} />
-              <span className="flex-1">Approval Queue</span>
-              {pendingCount > 0 && (
-                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-gold-500 px-1 text-[11px] font-bold text-ink-950">
-                  {pendingCount}
-                </span>
+          {user?.role === "admin" ? (
+            <>
+              <NavLink to="/admin/users" active={location.pathname === "/admin/users"}>
+                <Users size={17} />
+                Users
+              </NavLink>
+              <NavLink to="/admin/departments" active={location.pathname === "/admin/departments"}>
+                <Building2 size={17} />
+                Departments
+              </NavLink>
+            </>
+          ) : (
+            <>
+              <NavLink to="/dashboard" active={location.pathname === "/dashboard"}>
+                <LayoutDashboard size={17} />
+                <span className="flex-1">Dashboard</span>
+                {user?.role === "dept_manager" && newRoutedCount > 0 && (
+                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-gold-500 px-1 text-[11px] font-bold text-ink-950">
+                    {newRoutedCount}
+                  </span>
+                )}
+              </NavLink>
+              {user?.role === "coordinator" && (
+                <NavLink to="/queue" active={location.pathname === "/queue"}>
+                  <ClipboardCheck size={17} />
+                  <span className="flex-1">Approval Queue</span>
+                  {pendingCount > 0 && (
+                    <span className="grid h-5 min-w-5 place-items-center rounded-full bg-gold-500 px-1 text-[11px] font-bold text-ink-950">
+                      {pendingCount}
+                    </span>
+                  )}
+                </NavLink>
               )}
-            </NavLink>
+              {user?.role === "coordinator" && (
+                <NavLink to="/analytics" active={location.pathname === "/analytics"}>
+                  <BarChart3 size={17} />
+                  Analytics
+                </NavLink>
+              )}
+              {user?.role === "submitter" && (
+                <NavLink to="/submissions" active={location.pathname === "/submissions"}>
+                  <Inbox size={17} />
+                  My Submissions
+                </NavLink>
+              )}
+            </>
           )}
-          {user?.role === "coordinator" && (
-            <NavLink to="/analytics" active={location.pathname === "/analytics"}>
-              <BarChart3 size={17} />
-              Analytics
-            </NavLink>
-          )}
+          <NavLink to="/account" active={location.pathname === "/account"}>
+            <Settings size={17} />
+            Account
+          </NavLink>
         </nav>
 
         {user && (

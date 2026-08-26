@@ -8,7 +8,8 @@ from app.extensions import db
 ROLE_SUBMITTER = "submitter"
 ROLE_COORDINATOR = "coordinator"
 ROLE_DEPT_MANAGER = "dept_manager"
-ROLES = [ROLE_SUBMITTER, ROLE_COORDINATOR, ROLE_DEPT_MANAGER]
+ROLE_ADMIN = "admin"
+ROLES = [ROLE_SUBMITTER, ROLE_COORDINATOR, ROLE_DEPT_MANAGER, ROLE_ADMIN]
 
 # Correspondence status constants
 STATUS_SUBMITTED = "submitted"

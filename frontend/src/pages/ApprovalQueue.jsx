@@ -1,13 +1,71 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ClipboardCheck, AlertTriangle, Inbox } from "lucide-react";
+import { ClipboardCheck, AlertTriangle, Inbox, FileText, ArrowRight } from "lucide-react";
 import { api } from "../api";
 import { Card, EmptyState, StatCard } from "../components/ui";
-import { SearchInput, Select, Pagination, OverdueTag, usePagedResult } from "../components/TableControls";
+import {
+  SearchInput, Select, Pagination, OverdueTag, usePagedResult,
+  Avatar, UrgencyChip, ConfidenceChip, URGENCY_STYLES, DEFAULT_URGENCY_STYLE,
+} from "../components/TableControls";
 import { sortByPriority, isOverdue } from "../utils/priority";
 
 const PAGE_SIZE = 8;
+
+function QueueItem({ item, index }) {
+  const urgencyStyle = URGENCY_STYLES[item.urgency] || DEFAULT_URGENCY_STYLE;
+  const overdue = isOverdue(item.deadline, item.status);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.4) }}
+      className={`flex flex-col gap-4 border-l-4 bg-white p-5 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center sm:justify-between ${urgencyStyle.border}`}
+    >
+      <div className="flex min-w-0 items-start gap-3.5">
+        <Avatar name={item.sender} />
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate font-semibold text-ink-900">{item.subject}</p>
+            {overdue && <OverdueTag />}
+          </div>
+          <p className="mt-1 truncate text-sm text-slate-500">
+            {item.sender || "Unknown sender"}
+            {item.source_filename && (
+              <span className="ml-2 inline-flex items-center gap-1 text-slate-400">
+                <FileText size={12} /> {item.source_filename}
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2.5 sm:flex-nowrap sm:gap-4">
+        <div className="min-w-[7rem]">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Recommended</p>
+          <p className="text-sm font-medium text-ink-900">{item.recommended_department_name || <em className="font-normal text-slate-400">none</em>}</p>
+        </div>
+
+        <ConfidenceChip confidence={item.ai_confidence} />
+
+        <UrgencyChip urgency={item.urgency} />
+
+        <div className="min-w-[6.5rem] text-right sm:text-left">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Deadline</p>
+          <p className="text-sm text-slate-600">{item.deadline || "—"}</p>
+        </div>
+
+        <Link
+          to={`/correspondence/${item.id}`}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-b from-gold-400 to-gold-500 px-4 py-2 text-sm font-semibold text-ink-950 shadow-sm transition hover:shadow-md sm:ml-0"
+        >
+          Review <ArrowRight size={14} />
+        </Link>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function ApprovalQueue() {
   const [items, setItems] = useState([]);
@@ -63,57 +121,19 @@ export default function ApprovalQueue() {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-5 py-3">Subject</th>
-                <th className="px-5 py-3">Sender</th>
-                <th className="px-5 py-3">File</th>
-                <th className="px-5 py-3">AI Recommended Dept</th>
-                <th className="px-5 py-3">AI Confidence</th>
-                <th className="px-5 py-3">Deadline</th>
-                <th className="px-5 py-3">Urgency</th>
-                <th className="px-5 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageItems.map((c, i) => (
-                <motion.tr
-                  key={c.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.4) }}
-                  className="border-b border-slate-50 transition-colors last:border-0 hover:bg-amber-50/50"
-                >
-                  <td className="px-5 py-3.5 font-medium text-ink-900">{c.subject}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{c.sender || "—"}</td>
-                  <td className="px-5 py-3.5 text-slate-500">{c.source_filename || "—"}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{c.recommended_department_name || <em className="text-slate-400">none</em>}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{c.ai_confidence || "—"}</td>
-                  <td className="px-5 py-3.5 text-slate-600">
-                    <div className="flex items-center gap-1.5">
-                      {c.deadline || "—"}
-                      {isOverdue(c.deadline, c.status) && <OverdueTag />}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-600">{c.urgency || "—"}</td>
-                  <td className="px-5 py-3.5">
-                    <Link to={`/correspondence/${c.id}`} className="font-semibold text-gold-600 hover:text-gold-500">Review</Link>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <EmptyState
-              icon={Inbox}
-              title={pending.length === 0 ? "Queue is clear" : "No matches"}
-              subtitle={pending.length === 0 ? "No new letters waiting for your review right now." : "Try a different search or filter."}
-            />
-          )}
-          <Pagination page={safePage} pageCount={pageCount} onChange={setPage} total={filtered.length} pageSize={PAGE_SIZE} />
+        <div className="divide-y divide-slate-100">
+          {pageItems.map((item, i) => (
+            <QueueItem key={item.id} item={item} index={i} />
+          ))}
         </div>
+        {filtered.length === 0 && (
+          <EmptyState
+            icon={Inbox}
+            title={pending.length === 0 ? "Queue is clear" : "No matches"}
+            subtitle={pending.length === 0 ? "No new letters waiting for your review right now." : "Try a different search or filter."}
+          />
+        )}
+        <Pagination page={safePage} pageCount={pageCount} onChange={setPage} total={filtered.length} pageSize={PAGE_SIZE} />
       </Card>
     </div>
   );

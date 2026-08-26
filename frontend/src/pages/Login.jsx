@@ -11,6 +11,7 @@ const DEMO_ACCOUNTS = [
   { username: "hr_manager", label: "Dept Manager · Administration & HR" },
   { username: "finance_manager", label: "Dept Manager · Finance" },
   { username: "procurement_manager", label: "Dept Manager · Procurement" },
+  { username: "admin1", label: "Admin" },
 ];
 
 const FEATURES = [

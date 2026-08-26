@@ -7,7 +7,7 @@ load_dotenv()
 
 from app import create_app
 from app.extensions import db
-from app.models import User, Department, ROLE_SUBMITTER, ROLE_COORDINATOR, ROLE_DEPT_MANAGER
+from app.models import User, Department, ROLE_SUBMITTER, ROLE_COORDINATOR, ROLE_DEPT_MANAGER, ROLE_ADMIN
 
 DEPARTMENTS = [
     ("Administration & HR", "Staff requests, leave applications, internal memos, official letters, circulars"),
@@ -45,6 +45,7 @@ with app.app_context():
     ensure_user("hr_manager", ROLE_DEPT_MANAGER, dept_objs["Administration & HR"])
     ensure_user("finance_manager", ROLE_DEPT_MANAGER, dept_objs["Finance"])
     ensure_user("procurement_manager", ROLE_DEPT_MANAGER, dept_objs["Procurement"])
+    ensure_user("admin1", ROLE_ADMIN)
 
     db.session.commit()
 
@@ -54,3 +55,4 @@ with app.app_context():
     print("  hr_manager           -> dept_manager (Administration & HR)")
     print("  finance_manager      -> dept_manager (Finance)")
     print("  procurement_manager  -> dept_manager (Procurement)")
+    print("  admin1               -> admin")

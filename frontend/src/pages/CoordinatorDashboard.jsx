@@ -5,10 +5,45 @@ import { ClipboardCheck, Inbox, Send, CheckCircle2, ArrowRight, Download } from 
 import { api } from "../api";
 import StatusBadge, { STATUS_OPTIONS } from "../components/StatusBadge";
 import { Card, EmptyState, StatCard, Button } from "../components/ui";
-import { SearchInput, Select, Pagination, usePagedResult } from "../components/TableControls";
+import { SearchInput, Select, Pagination, usePagedResult, Avatar } from "../components/TableControls";
 import { downloadCSV } from "../utils/csv";
 
 const PAGE_SIZE = 8;
+
+function CorrespondenceRow({ item, index }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.4) }}
+      className="flex flex-col gap-4 bg-white p-5 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="flex min-w-0 items-start gap-3.5">
+        <Avatar name={item.sender} />
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-ink-900">{item.subject || <em className="font-normal text-slate-400">(no subject)</em>}</p>
+          <p className="mt-1 truncate text-sm text-slate-500">{item.sender || "Unknown sender"}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2.5 sm:flex-nowrap sm:gap-4">
+        <div className="min-w-[7rem]">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Final Dept</p>
+          <p className="text-sm font-medium text-ink-900">{item.final_department_name || "—"}</p>
+        </div>
+
+        <StatusBadge status={item.status} />
+
+        <Link
+          to={`/correspondence/${item.id}`}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-b from-gold-400 to-gold-500 px-4 py-2 text-sm font-semibold text-ink-950 shadow-sm transition hover:shadow-md sm:ml-0"
+        >
+          View <ArrowRight size={14} />
+        </Link>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function CoordinatorDashboard() {
   const [items, setItems] = useState([]);
@@ -109,44 +144,19 @@ export default function CoordinatorDashboard() {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-5 py-3">Subject</th>
-                <th className="px-5 py-3">Final Dept</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageItems.map((c, i) => (
-                <motion.tr
-                  key={c.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.4) }}
-                  className="border-b border-slate-50 transition-colors last:border-0 hover:bg-slate-50/80"
-                >
-                  <td className="px-5 py-3.5 font-medium text-ink-900">{c.subject || <em className="font-normal text-slate-400">(no subject)</em>}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{c.final_department_name || "—"}</td>
-                  <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
-                  <td className="px-5 py-3.5">
-                    <Link to={`/correspondence/${c.id}`} className="font-semibold text-gold-600 hover:text-gold-500">View</Link>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <EmptyState
-              icon={Inbox}
-              title={others.length === 0 ? "No correspondence yet" : "No matches"}
-              subtitle={others.length > 0 ? "Try a different search or filter." : undefined}
-            />
-          )}
-          <Pagination page={safePage} pageCount={pageCount} onChange={setPage} total={filtered.length} pageSize={PAGE_SIZE} />
+        <div className="divide-y divide-slate-100">
+          {pageItems.map((item, i) => (
+            <CorrespondenceRow key={item.id} item={item} index={i} />
+          ))}
         </div>
+        {filtered.length === 0 && (
+          <EmptyState
+            icon={Inbox}
+            title={others.length === 0 ? "No correspondence yet" : "No matches"}
+            subtitle={others.length > 0 ? "Try a different search or filter." : undefined}
+          />
+        )}
+        <Pagination page={safePage} pageCount={pageCount} onChange={setPage} total={filtered.length} pageSize={PAGE_SIZE} />
       </Card>
     </div>
   );
