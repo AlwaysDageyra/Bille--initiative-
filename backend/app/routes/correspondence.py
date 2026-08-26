@@ -1,4 +1,5 @@
 import os
+import threading
 import uuid
 
 from flask import Blueprint, request, jsonify, current_app, send_from_directory
@@ -64,10 +65,18 @@ def _delete_stored_file(stored_filename):
         os.remove(path)
 
 
-def _log(correspondence_id, action, note=None, actor_id=None):
+_UNSET = object()
+
+
+def _log(correspondence_id, action, note=None, actor_id=_UNSET):
+    # actor_id defaults to the logged-in user (normal request-time actions).
+    # Pass actor_id=None explicitly for system/background actions where
+    # there's no request context to read current_user from.
+    if actor_id is _UNSET:
+        actor_id = current_user.id if current_user.is_authenticated else None
     entry = ActionHistory(
         correspondence_id=correspondence_id,
-        actor_id=actor_id if actor_id is not None else (current_user.id if current_user.is_authenticated else None),
+        actor_id=actor_id,
         action=action,
         note=note,
     )
@@ -75,6 +84,9 @@ def _log(correspondence_id, action, note=None, actor_id=None):
 
 
 def _run_ai_analysis(correspondence: Correspondence):
+    # actor_id is explicitly None (attributed to "system") rather than left to
+    # _log's current_user default: this runs from a background thread with no
+    # request context, where touching current_user raises RuntimeError.
     departments = Department.query.all()
     prompt = build_extraction_prompt(correspondence.raw_text, [d.name for d in departments])
 
@@ -85,11 +97,31 @@ def _run_ai_analysis(correspondence: Correspondence):
             setattr(correspondence, key, value)
         correspondence.status = STATUS_PENDING_REVIEW
         correspondence.ai_error = None
-        _log(correspondence.id, "ai_analyzed", note=f"AI recommended: {fields.get('recommended_department_id')}")
+        dept_id = fields.get("recommended_department_id")
+        dept_name = next((d.name for d in departments if d.id == dept_id), None)
+        note = f"Recommended department: {dept_name}" if dept_name else "No department could be determined"
+        _log(correspondence.id, "ai_analyzed", note=note, actor_id=None)
     except OllamaError as exc:
         correspondence.status = STATUS_AI_ANALYZED
         correspondence.ai_error = str(exc)
-        _log(correspondence.id, "ai_analysis_failed", note=str(exc))
+        _log(correspondence.id, "ai_analysis_failed", note=str(exc), actor_id=None)
+
+
+def _run_ai_analysis_in_background(correspondence_id):
+    """Runs the extraction off the request thread so a submitter's upload
+    returns immediately instead of blocking on the LLM call. Needs its own
+    app context + DB session since it's outside the request lifecycle."""
+    app = current_app._get_current_object()
+
+    def worker():
+        with app.app_context():
+            c = Correspondence.query.get(correspondence_id)
+            if c is None:
+                return
+            _run_ai_analysis(c)
+            db.session.commit()
+
+    threading.Thread(target=worker, daemon=True).start()
 
 
 @bp.post("")
@@ -117,12 +149,13 @@ def create_correspondence():
         status=STATUS_SUBMITTED,
     )
     db.session.add(correspondence)
-    db.session.flush()  # assigns correspondence.id before we log/analyze
+    db.session.flush()  # assigns correspondence.id before we log
 
     _log(correspondence.id, "submitted")
-    _run_ai_analysis(correspondence)
-
     db.session.commit()
+
+    _run_ai_analysis_in_background(correspondence.id)
+
     return jsonify(correspondence.to_dict()), 201
 
 
@@ -210,6 +243,7 @@ def replace_correspondence(correspondence_id):
     c.stored_filename = _save_uploaded_file(uploaded_file, file_bytes)
     c.source_filename = uploaded_file.filename
     c.raw_text = raw_text
+    c.status = STATUS_SUBMITTED
 
     # Clear the previous document's AI results so stale data can't linger
     # if re-analysis of the new document fails.
@@ -219,9 +253,9 @@ def replace_correspondence(correspondence_id):
     c.recommended_department_id = None
 
     _log(correspondence_id, "resubmitted", note=f"Replaced document with {uploaded_file.filename}")
-    _run_ai_analysis(c)
-
     db.session.commit()
+
+    _run_ai_analysis_in_background(c.id)
     return jsonify(c.to_dict())
 
 
