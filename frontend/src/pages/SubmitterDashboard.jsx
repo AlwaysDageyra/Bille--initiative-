@@ -1,30 +1,64 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Inbox, Clock, Send, CheckCircle2, ArrowRight, UploadCloud, Sparkles,
-  ScanSearch, ClipboardCheck, FileText, Route,
+  ScanSearch, ClipboardCheck, FileText,
 } from "lucide-react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../components/Feedback";
 import { Card, StatCard, EmptyState } from "../components/ui";
 import { Avatar } from "../components/TableControls";
 import StatusBadge from "../components/StatusBadge";
 
 const STEPS = [
   { icon: UploadCloud, title: "You submit", text: "Upload a letter, memo, or notice as a PDF, DOCX, or TXT file." },
-  { icon: ScanSearch, title: "AI analyzes", text: "Ollama extracts the subject, sender, deadline, and recommends a department." },
-  { icon: ClipboardCheck, title: "Coordinator reviews", text: "A coordinator confirms or corrects the AI's recommendation." },
-  { icon: Route, title: "Routed for action", text: "The right department picks it up and works it to closure." },
+  { icon: ScanSearch, title: "Automatic review", text: "Your document is reviewed and key details are identified automatically." },
+  { icon: ClipboardCheck, title: "Coordinator reviews", text: "A coordinator confirms the details and picks the right department." },
+  { icon: Send, title: "Forwarded for action", text: "The right department picks it up and works it to closure." },
 ];
 
 export default function SubmitterDashboard() {
   const { user } = useAuth();
+  const toast = useToast();
   const [items, setItems] = useState([]);
+  const prevItemsRef = useRef([]);
+
+  const load = async () => {
+    const data = await api.listCorrespondence();
+
+    // Same completion notification as My Submissions — a submitter sitting
+    // on the dashboard while their upload processes should get told when it
+    // actually finishes, not just when it was received.
+    for (const item of data) {
+      const prev = prevItemsRef.current.find((p) => p.id === item.id);
+      if (prev?.status === "submitted" && item.status !== "submitted") {
+        if (item.status === "ai_analyzed") {
+          toast.error(`"${item.source_filename}" — we had trouble processing this automatically. A coordinator will review it manually.`);
+        } else {
+          toast.success(`"${item.subject || item.source_filename}" — submission successfully received.`);
+        }
+      }
+    }
+
+    prevItemsRef.current = data;
+    setItems(data);
+  };
 
   useEffect(() => {
-    api.listCorrespondence().then(setItems);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Poll while anything is still processing so the preview list (and its
+  // loading spinner) updates on its own instead of needing a manual refresh.
+  useEffect(() => {
+    if (!items.some((c) => c.status === "submitted")) return;
+    const interval = setInterval(() => load().catch(() => {}), 4000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   const stats = {
     total: items.length,
@@ -45,7 +79,7 @@ export default function SubmitterDashboard() {
               <Sparkles size={13} /> GovFlow AI
             </p>
             <h1 className="mt-2 text-2xl font-extrabold tracking-tight">Welcome back, {user.username}</h1>
-            <p className="mt-1 max-w-md text-sm text-slate-400">
+            <p className="mt-1 max-w-md text-sm text-slate-400 dark:text-white/35">
               Track every letter you've submitted and see exactly where it stands in the review process.
             </p>
           </div>
@@ -61,20 +95,20 @@ export default function SubmitterDashboard() {
       <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard icon={Inbox} label="Total submitted" value={stats.total} accent="gold" delay={0} />
         <StatCard icon={Clock} label="Pending review" value={stats.pending} accent="blue" delay={0.05} />
-        <StatCard icon={Send} label="Routed" value={stats.routed} accent="purple" delay={0.1} />
+        <StatCard icon={Send} label="Forwarded" value={stats.routed} accent="purple" delay={0.1} />
         <StatCard icon={CheckCircle2} label="Closed" value={stats.closed} accent="emerald" delay={0.15} />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-bold text-ink-900">Recent Submissions</h2>
+            <h2 className="font-bold text-ink-900 dark:text-white">Recent Submissions</h2>
             <Link to="/submissions" className="inline-flex items-center gap-1 text-sm font-semibold text-gold-600 hover:text-gold-500">
               View all <ArrowRight size={14} />
             </Link>
           </div>
           <Card className="overflow-hidden">
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-100 dark:divide-white/10">
               {recent.map((item, i) => (
                 <motion.div
                   key={item.id}
@@ -85,15 +119,22 @@ export default function SubmitterDashboard() {
                 >
                   <Avatar name={item.subject} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-ink-900">{item.subject || <em className="font-normal text-slate-400">(pending analysis)</em>}</p>
-                    <p className="mt-0.5 truncate text-xs text-slate-400">
+                    <p className="truncate text-sm font-semibold text-ink-900 dark:text-white">
+                      {item.subject || (
+                        <em className="inline-flex items-center gap-1.5 font-normal text-slate-400 dark:text-white/35">
+                          <span className="h-3 w-3 flex-none animate-spin rounded-full border-2 border-slate-300 dark:border-white/15 border-t-gold-500" />
+                          Processing...
+                        </em>
+                      )}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-slate-400 dark:text-white/35">
                       {item.source_filename && (
                         <span className="inline-flex items-center gap-1"><FileText size={11} /> {item.source_filename}</span>
                       )}
                     </p>
                   </div>
-                  <StatusBadge status={item.status} />
-                  <Link to={`/correspondence/${item.id}`} className="flex-none text-slate-400 transition hover:text-gold-600">
+                  <StatusBadge status={item.status} simplified />
+                  <Link to={`/correspondence/${item.id}`} className="flex-none text-slate-400 dark:text-white/35 transition hover:text-gold-600">
                     <ArrowRight size={16} />
                   </Link>
                 </motion.div>
@@ -106,16 +147,16 @@ export default function SubmitterDashboard() {
         </div>
 
         <div>
-          <h2 className="mb-4 font-bold text-ink-900">How It Works</h2>
-          <Card className="divide-y divide-slate-100">
+          <h2 className="mb-4 font-bold text-ink-900 dark:text-white">How It Works</h2>
+          <Card className="divide-y divide-slate-100 dark:divide-white/10">
             {STEPS.map((step, i) => (
               <div key={step.title} className="flex items-start gap-3.5 p-4">
                 <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-gold-500/10 text-gold-600">
                   <step.icon size={16} />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-ink-900">{i + 1}. {step.title}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{step.text}</p>
+                  <p className="text-sm font-semibold text-ink-900 dark:text-white">{i + 1}. {step.title}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-white/50">{step.text}</p>
                 </div>
               </div>
             ))}

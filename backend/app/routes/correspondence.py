@@ -11,6 +11,7 @@ from app.models import (
     Correspondence,
     Department,
     ActionHistory,
+    User,
     ROLE_SUBMITTER,
     ROLE_COORDINATOR,
     ROLE_DEPT_MANAGER,
@@ -25,9 +26,17 @@ from app.models import (
 from app.services.ollama_service import call_ollama_json, OllamaError
 from app.services.extraction import build_extraction_prompt, normalize_extraction
 from app.services.file_extraction import extract_text, ExtractionError
+from app.services.email_service import send_email
 from app.utils import role_required
 
 bp = Blueprint("correspondence", __name__, url_prefix="/api/correspondence")
+
+# A submission can attach several documents at once, but each one becomes its
+# own independent Correspondence record — its own AI extraction, its own
+# recommended department, its own routing — since attached files are often
+# unrelated letters that belong with different departments, not one bundle.
+MAX_FILES_PER_SUBMISSION = 10
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
 EDITABLE_FIELDS = [
     "document_type",
@@ -88,7 +97,7 @@ def _run_ai_analysis(correspondence: Correspondence):
     # _log's current_user default: this runs from a background thread with no
     # request context, where touching current_user raises RuntimeError.
     departments = Department.query.all()
-    prompt = build_extraction_prompt(correspondence.raw_text, [d.name for d in departments])
+    prompt = build_extraction_prompt(correspondence.raw_text, departments)
 
     try:
         raw = call_ollama_json(prompt)
@@ -111,15 +120,43 @@ def _run_ai_analysis_in_background(correspondence_id):
     """Runs the extraction off the request thread so a submitter's upload
     returns immediately instead of blocking on the LLM call. Needs its own
     app context + DB session since it's outside the request lifecycle."""
+    _run_batch_analysis_in_background([correspondence_id])
+
+
+def _run_batch_analysis_in_background(correspondence_ids):
+    """Same as _run_ai_analysis_in_background, but for several records from
+    one multi-file submission. These run one at a time in a single thread
+    rather than one thread per file — Ollama only runs one generation at a
+    time on this hardware anyway, so firing N threads at once just means
+    N requests queue up and compete, with later ones waiting long enough to
+    risk timing out. Processing them in order is no slower in total and
+    doesn't risk that."""
     app = current_app._get_current_object()
 
     def worker():
         with app.app_context():
-            c = Correspondence.query.get(correspondence_id)
-            if c is None:
-                return
-            _run_ai_analysis(c)
-            db.session.commit()
+            for correspondence_id in correspondence_ids:
+                c = Correspondence.query.get(correspondence_id)
+                if c is None:
+                    continue
+                _run_ai_analysis(c)
+                db.session.commit()
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def _send_email_in_background(to_address, subject, body):
+    """Same reasoning as the AI analysis background helpers above — an SMTP
+    server can be slow or unreachable, and a notification email should never
+    be able to delay the actual action (a submission, a forward) that
+    triggered it."""
+    if not to_address:
+        return
+    app = current_app._get_current_object()
+
+    def worker():
+        with app.app_context():
+            send_email(to_address, subject, body)
 
     threading.Thread(target=worker, daemon=True).start()
 
@@ -128,35 +165,70 @@ def _run_ai_analysis_in_background(correspondence_id):
 @login_required
 @role_required(ROLE_SUBMITTER)
 def create_correspondence():
-    uploaded_file = request.files.get("file")
-    if not uploaded_file or not uploaded_file.filename:
-        return jsonify({"error": "A document file (PDF, DOCX, or TXT) is required"}), 400
+    uploaded_files = [f for f in request.files.getlist("files") if f.filename]
+    if not uploaded_files:
+        return jsonify({"error": "At least one document file (PDF, DOCX, or TXT) is required"}), 400
+    if len(uploaded_files) > MAX_FILES_PER_SUBMISSION:
+        return jsonify({"error": f"You can submit up to {MAX_FILES_PER_SUBMISSION} files at once"}), 400
 
-    file_bytes = uploaded_file.read()
+    created = []
+    failed = []
 
-    try:
-        raw_text = extract_text(uploaded_file.filename, file_bytes)
-    except ExtractionError as exc:
-        return jsonify({"error": str(exc)}), 400
+    for uploaded_file in uploaded_files:
+        file_bytes = uploaded_file.read()
 
-    stored_filename = _save_uploaded_file(uploaded_file, file_bytes)
+        if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+            failed.append({"filename": uploaded_file.filename, "error": "File exceeds the 10 MB limit"})
+            continue
 
-    correspondence = Correspondence(
-        submitter_id=current_user.id,
-        raw_text=raw_text,
-        source_filename=uploaded_file.filename,
-        stored_filename=stored_filename,
-        status=STATUS_SUBMITTED,
-    )
-    db.session.add(correspondence)
-    db.session.flush()  # assigns correspondence.id before we log
+        try:
+            raw_text = extract_text(uploaded_file.filename, file_bytes)
+        except ExtractionError as exc:
+            failed.append({"filename": uploaded_file.filename, "error": str(exc)})
+            continue
 
-    _log(correspondence.id, "submitted")
+        stored_filename = _save_uploaded_file(uploaded_file, file_bytes)
+
+        correspondence = Correspondence(
+            submitter_id=current_user.id,
+            raw_text=raw_text,
+            source_filename=uploaded_file.filename,
+            stored_filename=stored_filename,
+            status=STATUS_SUBMITTED,
+        )
+        db.session.add(correspondence)
+        db.session.flush()  # assigns correspondence.id before we log
+        _log(correspondence.id, "submitted")
+        created.append(correspondence)
+
+    if not created:
+        return jsonify({"error": "No files could be processed", "failed": failed}), 400
+
     db.session.commit()
 
-    _run_ai_analysis_in_background(correspondence.id)
+    _run_batch_analysis_in_background([c.id for c in created])
 
-    return jsonify(correspondence.to_dict()), 201
+    if len(created) == 1:
+        subject = "Your submission was received"
+        body = (
+            f"Hello {current_user.username},\n\n"
+            f'We\'ve received your submission "{created[0].source_filename}" and it is now being reviewed.\n\n'
+            "- GovFlow AI"
+        )
+    else:
+        filenames = "\n".join(f"- {c.source_filename}" for c in created)
+        subject = f"Your submission of {len(created)} documents was received"
+        body = (
+            f"Hello {current_user.username},\n\n"
+            f"We've received your submission of {len(created)} documents and they are now being reviewed:\n{filenames}\n\n"
+            "- GovFlow AI"
+        )
+    _send_email_in_background(current_user.email, subject, body)
+
+    return jsonify({
+        "created": [c.to_dict() for c in created],
+        "failed": failed,
+    }), 201
 
 
 @bp.get("")
@@ -324,6 +396,8 @@ def route_correspondence(correspondence_id):
     department = Department.query.get(department_id)
     if not department:
         return jsonify({"error": "Invalid department_id"}), 400
+    if not User.query.filter_by(role=ROLE_DEPT_MANAGER, department_id=department_id).first():
+        return jsonify({"error": f"{department.name} has no manager assigned yet. Ask an admin to assign one before forwarding correspondence to it."}), 400
 
     was_reroute = c.status == STATUS_ROUTED
     agreed_with_ai = department_id == c.recommended_department_id
@@ -341,6 +415,17 @@ def route_correspondence(correspondence_id):
     _log(correspondence_id, action, note=f"Sent to {department.name}" + (f" - {note}" if note else ""))
 
     db.session.commit()
+
+    managers = User.query.filter_by(role=ROLE_DEPT_MANAGER, department_id=department_id).all()
+    subject = f"New correspondence forwarded to {department.name}"
+    body = (
+        f"Hello,\n\n"
+        f'A letter titled "{c.subject or c.source_filename}" has been forwarded to {department.name} for action.\n\n'
+        "- GovFlow AI"
+    )
+    for manager in managers:
+        _send_email_in_background(manager.email, subject, body)
+
     return jsonify(c.to_dict())
 
 
@@ -410,6 +495,43 @@ def add_followup(correspondence_id):
         return jsonify({"error": "Follow-up note cannot be empty"}), 400
 
     _log(correspondence_id, "submitter_followup", note=note)
+
+    db.session.commit()
+    return jsonify(c.to_dict())
+
+
+@bp.post("/<int:correspondence_id>/feedback")
+@login_required
+@role_required(ROLE_COORDINATOR)
+def send_feedback(correspondence_id):
+    c = Correspondence.query.get_or_404(correspondence_id)
+
+    data = request.get_json(silent=True) or {}
+    note = (data.get("note") or "").strip()
+    if not note:
+        return jsonify({"error": "Feedback message cannot be empty"}), 400
+
+    _log(correspondence_id, "coordinator_feedback", note=note)
+
+    db.session.commit()
+    return jsonify(c.to_dict())
+
+
+@bp.post("/<int:correspondence_id>/internal-note")
+@login_required
+@role_required(ROLE_COORDINATOR, ROLE_DEPT_MANAGER)
+def add_internal_note(correspondence_id):
+    c = Correspondence.query.get_or_404(correspondence_id)
+
+    if current_user.role == ROLE_DEPT_MANAGER and c.final_department_id != current_user.department_id:
+        return jsonify({"error": "Forbidden"}), 403
+
+    data = request.get_json(silent=True) or {}
+    note = (data.get("note") or "").strip()
+    if not note:
+        return jsonify({"error": "Note cannot be empty"}), 400
+
+    _log(correspondence_id, "internal_note", note=note)
 
     db.session.commit()
     return jsonify(c.to_dict())

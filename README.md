@@ -1,6 +1,6 @@
 # GovFlow AI
 
-An AI-assisted correspondence and action-management system for government offices. NGOs and external parties submit letters/memos/notices as documents; a local LLM (Ollama) extracts structured information and recommends the responsible department; a coordinator confirms the routing; the receiving department manager actions it. Every step is logged to an audit trail.
+An AI-assisted correspondence and action-management system for government offices. NGOs and external parties submit letters/memos/notices as documents; a local LLM (Ollama) extracts structured information and recommends the responsible department; a coordinator confirms the forwarding; the receiving department manager actions it. Every step is logged to an audit trail.
 
 This project intentionally does **not** use RAG — it is an LLM-only correspondence triage tool. There is no retrieval against a policy knowledge base, so the "Policy/Procedure Needed" field is the model's own unverified suggestion, not a grounded fact.
 
@@ -24,14 +24,14 @@ React (Vite, Tailwind CSS)  →  Flask (SQLAlchemy, Flask-Login)  →  Ollama (l
 
 | Role | Who | What they do |
 |---|---|---|
-| `submitter` | NGO / external party | Uploads a letter (PDF/DOCX/TXT); the AI analyzes it automatically. Can replace the document or delete the submission (and add follow-up notes any time) as long as it hasn't been routed yet. |
-| `coordinator` | Central registry/triage | Reviews the AI's extraction in the **Approval Queue**, can correct any extracted field, confirms or overrides the recommended department, and routes it. Can also re-route (before the department starts work) if a mistake was made. |
-| `dept_manager` | One per department (Administration & HR, Finance, Procurement) | Sees correspondence routed to their department, marks it in progress/closed, or bounces it back to the coordinator if it was misrouted. |
+| `submitter` | NGO / external party | Uploads a letter (PDF/DOCX/TXT); the AI analyzes it automatically. Can replace the document or delete the submission (and add follow-up notes any time) as long as it hasn't been forwarded yet. |
+| `coordinator` | Central registry/triage | Reviews the AI's extraction in the **Review Queue**, can correct any extracted field, confirms or overrides the recommended department, and forwards it. Can also re-forward (before the department starts work) if a mistake was made. |
+| `dept_manager` | One per department (Administration & HR, Finance, Procurement) | Sees correspondence forwarded to their department, marks it in progress/closed, or bounces it back to the coordinator if it was misdirected. |
 | `admin` | System administrator | Creates/edits departments and staff accounts (Users & Departments pages) — no correspondence access. |
 
 Every account can change their own password from **Account Settings**.
 
-**Status flow:** `submitted` → `pending_coordinator_review` → `routed` → `in_progress` → `closed`, with a `bounced_back` action returning a routed item to `pending_coordinator_review` for re-review. Every transition is written to `ActionHistory` and shown as a timeline on the correspondence detail page.
+**Status flow:** `submitted` → `pending_coordinator_review` → `routed` → `in_progress` → `closed` (the `routed` status displays to users as "Forwarded"), with a `bounced_back` action returning a forwarded item to `pending_coordinator_review` for re-review. Every transition is written to `ActionHistory` and shown as a timeline on the correspondence detail page.
 
 ## Setup
 
@@ -97,24 +97,24 @@ All use password `password123`.
 - Department classification/recommendation
 - Deadline & urgency detection
 - Concise action summary
-- Human review before any routing decision is final, including editing the AI's extracted fields
+- Human review before any forwarding decision is final, including editing the AI's extracted fields
 - Correspondence/action history (audit trail)
 - Full web UI
 
 **Beyond the brief:**
 - Role-based access (submitter / coordinator / department manager / admin) with per-department queues
-- Full NGO CRUD on their own letters — upload, replace document (re-analyzed), delete, and follow-up notes — locked once a letter is routed, to keep the audit trail intact for everyone downstream
-- Coordinator can correct AI-extracted fields before routing, and re-route a letter if it was sent to the wrong department by mistake
-- Department managers can bounce a misrouted letter back to the coordinator's queue with a required reason
+- Full NGO CRUD on their own letters — upload, replace document (re-analyzed), delete, and follow-up notes — locked once a letter is forwarded, to keep the audit trail intact for everyone downstream
+- Coordinator can correct AI-extracted fields before forwarding, and re-forward a letter if it was sent to the wrong department by mistake
+- Department managers can bounce a misdirected letter back to the coordinator's queue with a required reason
 - Admin role with in-app management of departments and staff accounts (no more editing the database by hand)
 - Account self-service password change for every role
-- Approval Queue and department queues sorted by priority (urgency + deadline) with overdue flags
-- Analytics dashboard: volume by department/status/urgency, AI routing agreement rate, average time-to-route
+- Review Queue and department queues sorted by priority (urgency + deadline) with overdue flags
+- Analytics dashboard: volume by department/status/urgency, AI forwarding agreement rate, average time-to-forward
 - Search, filter, and pagination on all correspondence lists
 - CSV export of correspondence lists
 - Print/export-to-PDF for a single correspondence record (browser print dialog)
 - Toast notifications and confirmation dialogs for every state-changing action
-- Sidebar notification badges (coordinator's pending queue, manager's newly-routed items)
+- Sidebar notification badges (coordinator's pending queue, manager's newly-forwarded items)
 - View the original uploaded document (not just its extracted text), permission-gated the same as the correspondence record itself
 - A cohesive visual design system: sidebar navigation, sender avatars, color-coded urgency/confidence/status chips, and animated transitions used consistently across every screen
 
@@ -125,8 +125,8 @@ All use password `password123`.
 | `/dashboard` | submitter | Welcome overview, recent submissions, "how it works" |
 | `/submissions` | submitter | Upload new correspondence + full list with search/filter/delete |
 | `/dashboard` | coordinator | Overview stats + all-correspondence list |
-| `/queue` | coordinator | Approval Queue — items awaiting review, priority-sorted |
-| `/analytics` | coordinator | Charts and routing-accuracy metrics |
+| `/queue` | coordinator | Review Queue — items awaiting review, priority-sorted |
+| `/analytics` | coordinator | Charts and forwarding-accuracy metrics |
 | `/dashboard` | dept_manager | Department queue, priority-sorted |
 | `/admin/users` | admin | Create/edit staff accounts |
 | `/admin/departments` | admin | Create/edit departments |
@@ -147,5 +147,5 @@ frontend/
   src/
     pages/            one file per screen (dashboards, submissions, queue, analytics, admin, account, detail)
     components/       Layout (sidebar), Feedback (toasts/confirm), ui.jsx (primitives), TableControls (avatars/chips/pagination)
-    utils/            priority.js (sorting/overdue), status.js (pre-routing gate), csv.js (export)
+    utils/            priority.js (sorting/overdue), status.js (pre-forwarding gate), csv.js (export)
 ```

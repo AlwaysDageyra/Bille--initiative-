@@ -30,9 +30,14 @@ class Department(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), unique=True, nullable=False)
     description = db.Column(db.String(500))
+    # Target turnaround time once a letter is forwarded here — null means no
+    # SLA is tracked for this department. Measured from routed_at, separate
+    # from a letter's own stated deadline (an external commitment vs. an
+    # internal ops target).
+    sla_days = db.Column(db.Integer, nullable=True)
 
     def to_dict(self):
-        return {"id": self.id, "name": self.name, "description": self.description}
+        return {"id": self.id, "name": self.name, "description": self.description, "sla_days": self.sla_days}
 
 
 class User(db.Model, UserMixin):
@@ -42,6 +47,7 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)
+    email = db.Column(db.String(255), nullable=True)
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
 
@@ -58,6 +64,7 @@ class User(db.Model, UserMixin):
             "id": self.id,
             "username": self.username,
             "role": self.role,
+            "email": self.email,
             "department_id": self.department_id,
             "department_name": self.department.name if self.department else None,
         }

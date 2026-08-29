@@ -1,17 +1,20 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Fraunces", ui-serif, Georgia, serif;
 
-  --color-ink-950: #0a0f1e;
-  --color-ink-900: #0f1729;
-  --color-ink-800: #16213a;
-  --color-ink-700: #1e2c4a;
-  --color-ink-600: #2c3e63;
+  --color-ink-950: #13120d;
+  --color-ink-900: #1b1a13;
+  --color-ink-800: #262419;
+  --color-ink-700: #363424;
+  --color-ink-600: #4c4935;
 
-  --color-gold-400: #ffcf4d;
-  --color-gold-500: #f5b422;
-  --color-gold-600: #d99a10;
+  --color-gold-400: #34d399;
+  --color-gold-500: #0ea968;
+  --color-gold-600: #0b8452;
 
   --animate-fade-up: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-fade-in: fade-in 0.4s ease both;
@@ -34,20 +37,31 @@
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: #f4f6fb;
+  background: #f6f1e8;
   color: var(--color-ink-900);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark body {
+  background: var(--color-ink-950);
+  color: #f1efe9;
 }
 
 * { box-sizing: border-box; }
 
 ::selection { background: var(--color-gold-400); color: var(--color-ink-950); }
+html.dark ::selection { background: var(--color-gold-600); color: #f1efe9; }
 
 /* Slim, unobtrusive scrollbar for the dark sidebar */
 .sidebar-scroll::-webkit-scrollbar { width: 6px; }
 .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--color-ink-600); border-radius: 999px; }
 
 .skeleton {
-  background: linear-gradient(90deg, #eef1f7 25%, #f7f8fb 37%, #eef1f7 63%);
+  background: linear-gradient(90deg, #efe9de 25%, #faf7f1 37%, #efe9de 63%);
   background-size: 800px 100%;
   animation: shimmer 2.4s linear infinite;
+}
+html.dark .skeleton {
+  background: linear-gradient(90deg, #1f1e16 25%, #262419 37%, #1f1e16 63%);
+  background-size: 800px 100%;
 }

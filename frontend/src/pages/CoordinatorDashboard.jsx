@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ClipboardCheck, Inbox, Send, CheckCircle2, ArrowRight, Download } from "lucide-react";
+import { ClipboardCheck, Inbox, Send, CheckCircle2, ArrowRight, Download, IdCard, CalendarClock } from "lucide-react";
 import { api } from "../api";
 import StatusBadge, { STATUS_OPTIONS } from "../components/StatusBadge";
 import { Card, EmptyState, StatCard, Button } from "../components/ui";
-import { SearchInput, Select, Pagination, usePagedResult, Avatar } from "../components/TableControls";
+import { SearchInput, Select, Pagination, usePagedResult, Avatar, OverdueTag, UrgencyChip } from "../components/TableControls";
 import { downloadCSV } from "../utils/csv";
+import { parseDeadline, isOverdue } from "../utils/priority";
+
+const UPCOMING_LIMIT = 6;
 
 const PAGE_SIZE = 8;
 
@@ -16,20 +19,27 @@ function CorrespondenceRow({ item, index }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.4) }}
-      className="flex flex-col gap-4 bg-white p-5 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-4 bg-white dark:bg-ink-900 p-5 transition-colors hover:bg-slate-50 dark:hover:bg-white/5/70 sm:flex-row sm:items-center sm:justify-between"
     >
       <div className="flex min-w-0 items-start gap-3.5">
         <Avatar name={item.sender} />
         <div className="min-w-0">
-          <p className="truncate font-semibold text-ink-900">{item.subject || <em className="font-normal text-slate-400">(no subject)</em>}</p>
-          <p className="mt-1 truncate text-sm text-slate-500">{item.sender || "Unknown sender"}</p>
+          <p className="truncate font-semibold text-ink-900 dark:text-white">{item.subject || <em className="font-normal text-slate-400 dark:text-white/35">(no subject)</em>}</p>
+          <p className="mt-1 truncate text-sm text-slate-500 dark:text-white/50">
+            {item.sender || "Unknown sender"}
+            {item.submitter_username && (
+              <span className="ml-2 inline-flex items-center gap-1 text-slate-400 dark:text-white/35">
+                <IdCard size={12} /> {item.submitter_username}
+              </span>
+            )}
+          </p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5 sm:flex-nowrap sm:gap-4">
         <div className="min-w-[7rem]">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Final Dept</p>
-          <p className="text-sm font-medium text-ink-900">{item.final_department_name || "—"}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-white/35">Final Dept</p>
+          <p className="text-sm font-medium text-ink-900 dark:text-white">{item.final_department_name || "—"}</p>
         </div>
 
         <StatusBadge status={item.status} />
@@ -42,6 +52,30 @@ function CorrespondenceRow({ item, index }) {
         </Link>
       </div>
     </motion.div>
+  );
+}
+
+function UpcomingDeadlineRow({ item }) {
+  const overdue = isOverdue(item.deadline, item.status);
+  return (
+    <Link
+      to={`/correspondence/${item.id}`}
+      className="flex items-center gap-3.5 p-4 transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="truncate text-sm font-semibold text-ink-900 dark:text-white">{item.subject || item.source_filename}</p>
+          {overdue && <OverdueTag />}
+        </div>
+        <p className="mt-0.5 truncate text-xs text-slate-400 dark:text-white/35">
+          {item.final_department_name || item.recommended_department_name || "Not yet forwarded"}
+        </p>
+      </div>
+      <UrgencyChip urgency={item.urgency} />
+      <span className={`flex-none text-sm font-medium ${overdue ? "text-red-600" : "text-slate-600 dark:text-white/65"}`}>
+        {item.deadline}
+      </span>
+    </Link>
   );
 }
 
@@ -67,6 +101,17 @@ export default function CoordinatorDashboard() {
     routed: items.filter((c) => ["routed", "in_progress"].includes(c.status)).length,
     closed: items.filter((c) => c.status === "closed").length,
   };
+
+  // Sorted purely by how soon the deadline actually is (overdue first), not
+  // by urgency — a Low-urgency letter due tomorrow belongs above a
+  // High-urgency one due next month here, since this is about what's about
+  // to be late across everything, not what the AI flagged as important.
+  const upcoming = useMemo(() => {
+    return items
+      .filter((c) => c.status !== "closed" && parseDeadline(c.deadline))
+      .sort((a, b) => parseDeadline(a.deadline) - parseDeadline(b.deadline))
+      .slice(0, UPCOMING_LIMIT);
+  }, [items]);
 
   const filtered = useMemo(() => {
     return others.filter((c) => {
@@ -102,14 +147,14 @@ export default function CoordinatorDashboard() {
   return (
     <div>
       <div className="mb-7">
-        <h1 className="text-2xl font-extrabold tracking-tight text-ink-900">Coordinator Overview</h1>
-        <p className="mt-1 text-sm text-slate-500">Confirm the AI's department recommendation before routing correspondence.</p>
+        <h1 className="text-2xl font-extrabold tracking-tight text-ink-900 dark:text-white">Coordinator Overview</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-white/50">Confirm the AI's department recommendation before forwarding correspondence.</p>
       </div>
 
       <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard icon={Inbox} label="Total received" value={stats.total} accent="gold" delay={0} />
         <StatCard icon={ClipboardCheck} label="Pending your review" value={stats.pending} accent="blue" delay={0.05} />
-        <StatCard icon={Send} label="Routed" value={stats.routed} accent="purple" delay={0.1} />
+        <StatCard icon={Send} label="Forwarded" value={stats.routed} accent="purple" delay={0.1} />
         <StatCard icon={CheckCircle2} label="Closed" value={stats.closed} accent="emerald" delay={0.15} />
       </div>
 
@@ -120,14 +165,30 @@ export default function CoordinatorDashboard() {
         >
           <span className="flex items-center gap-2.5 text-sm font-semibold text-amber-800">
             <ClipboardCheck size={17} />
-            {pending.length} letter{pending.length === 1 ? "" : "s"} waiting in your Approval Queue
+            {pending.length} letter{pending.length === 1 ? "" : "s"} waiting in your Review Queue
           </span>
           <ArrowRight size={16} className="text-amber-700" />
         </Link>
       )}
 
+      {upcoming.length > 0 && (
+        <div className="mb-8">
+          <div className="mb-4 flex items-center gap-2">
+            <CalendarClock size={17} className="text-slate-400 dark:text-white/35" />
+            <h2 className="font-bold text-ink-900 dark:text-white">Upcoming Deadlines</h2>
+          </div>
+          <Card className="overflow-hidden">
+            <div className="divide-y divide-slate-100 dark:divide-white/10">
+              {upcoming.map((item) => (
+                <UpcomingDeadlineRow key={item.id} item={item} />
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-bold text-ink-900">All Correspondence</h2>
+        <h2 className="font-bold text-ink-900 dark:text-white">All Correspondence</h2>
         <div className="flex flex-wrap items-center gap-3">
           <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search subject, sender..." />
           <Select value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }} placeholder="All statuses" options={STATUS_OPTIONS} />
@@ -144,7 +205,7 @@ export default function CoordinatorDashboard() {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 dark:divide-white/10">
           {pageItems.map((item, i) => (
             <CorrespondenceRow key={item.id} item={item} index={i} />
           ))}

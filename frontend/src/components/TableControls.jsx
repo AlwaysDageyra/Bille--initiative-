@@ -3,12 +3,12 @@ import { Search, ChevronLeft, ChevronRight, AlertOctagon, Gauge } from "lucide-r
 export function SearchInput({ value, onChange, placeholder = "Search..." }) {
   return (
     <div className="relative w-full sm:w-64">
-      <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/35" />
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-gold-500 focus:ring-4 focus:ring-gold-500/15"
+        className="w-full rounded-xl border border-slate-300 dark:border-white/15 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-gold-500 focus:ring-4 focus:ring-gold-500/15"
       />
     </div>
   );
@@ -19,7 +19,7 @@ export function Select({ value, onChange, options, placeholder }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-gold-500 focus:ring-4 focus:ring-gold-500/15"
+      className="rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-ink-900 px-3 py-2 text-sm text-slate-700 dark:text-white/80 outline-none transition focus:border-gold-500 focus:ring-4 focus:ring-gold-500/15"
     >
       <option value="">{placeholder}</option>
       {options.map((o) => (
@@ -34,21 +34,21 @@ export function Pagination({ page, pageCount, onChange, total, pageSize }) {
   const start = (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
   return (
-    <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-sm text-slate-500">
+    <div className="flex items-center justify-between border-t border-slate-100 dark:border-white/10 px-5 py-3 text-sm text-slate-500 dark:text-white/50">
       <span>{start}–{end} of {total}</span>
       <div className="flex items-center gap-1">
         <button
           onClick={() => onChange(page - 1)}
           disabled={page <= 1}
-          className="grid h-8 w-8 place-items-center rounded-lg transition hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-30"
+          className="grid h-8 w-8 place-items-center rounded-lg transition hover:bg-slate-100 dark:hover:bg-white/10 disabled:pointer-events-none disabled:opacity-30"
         >
           <ChevronLeft size={16} />
         </button>
-        <span className="px-2 text-xs font-medium text-slate-600">Page {page} of {pageCount}</span>
+        <span className="px-2 text-xs font-medium text-slate-600 dark:text-white/65">Page {page} of {pageCount}</span>
         <button
           onClick={() => onChange(page + 1)}
           disabled={page >= pageCount}
-          className="grid h-8 w-8 place-items-center rounded-lg transition hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-30"
+          className="grid h-8 w-8 place-items-center rounded-lg transition hover:bg-slate-100 dark:hover:bg-white/10 disabled:pointer-events-none disabled:opacity-30"
         >
           <ChevronRight size={16} />
         </button>
@@ -59,18 +59,18 @@ export function Pagination({ page, pageCount, onChange, total, pageSize }) {
 
 export function OverdueTag() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600 ring-1 ring-inset ring-red-200">
+    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 dark:bg-red-950/40 px-2 py-0.5 text-[11px] font-semibold text-red-600 dark:text-red-300 ring-1 ring-inset ring-red-200 dark:ring-red-800/60">
       <AlertOctagon size={11} /> Overdue
     </span>
   );
 }
 
 export const URGENCY_STYLES = {
-  High: { border: "border-l-red-500", dot: "bg-red-500", chip: "bg-red-50 text-red-700 ring-red-200" },
-  Medium: { border: "border-l-amber-500", dot: "bg-amber-500", chip: "bg-amber-50 text-amber-700 ring-amber-200" },
-  Low: { border: "border-l-emerald-500", dot: "bg-emerald-500", chip: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  High: { border: "border-l-red-500", dot: "bg-red-500", chip: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 ring-red-200 dark:ring-red-800/60" },
+  Medium: { border: "border-l-amber-500", dot: "bg-amber-500", chip: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 ring-amber-200 dark:ring-amber-800/60" },
+  Low: { border: "border-l-emerald-500", dot: "bg-emerald-500", chip: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-emerald-200 dark:ring-emerald-800/60" },
 };
-export const DEFAULT_URGENCY_STYLE = { border: "border-l-slate-300", dot: "bg-slate-300", chip: "bg-slate-100 text-slate-500 ring-slate-200" };
+export const DEFAULT_URGENCY_STYLE = { border: "border-l-slate-300", dot: "bg-slate-300", chip: "bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-white/50 ring-slate-200 dark:ring-white/10" };
 
 export function UrgencyChip({ urgency }) {
   const style = URGENCY_STYLES[urgency] || DEFAULT_URGENCY_STYLE;
@@ -93,15 +93,15 @@ export function Avatar({ name, size = "md" }) {
 }
 
 export const CONFIDENCE_STYLES = {
-  High: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  Medium: "bg-amber-50 text-amber-700 ring-amber-200",
-  Low: "bg-red-50 text-red-700 ring-red-200",
+  High: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-emerald-200 dark:ring-emerald-800/60",
+  Medium: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 ring-amber-200 dark:ring-amber-800/60",
+  Low: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 ring-red-200 dark:ring-red-800/60",
 };
 
 export function ConfidenceChip({ confidence }) {
-  if (!confidence) return <span className="text-sm text-slate-400">—</span>;
+  if (!confidence) return <span className="text-sm text-slate-400 dark:text-white/35">—</span>;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${CONFIDENCE_STYLES[confidence] || "bg-slate-100 text-slate-500 ring-slate-200"}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${CONFIDENCE_STYLES[confidence] || "bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-white/50 ring-slate-200 dark:ring-white/10"}`}>
       <Gauge size={11} /> {confidence}
     </span>
   );

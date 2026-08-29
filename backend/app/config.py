@@ -14,10 +14,23 @@ class Config:
     OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
     OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 
-    MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB upload limit
+    # A submission can include several files, so this caps the whole request,
+    # not any single file — see MAX_FILE_SIZE_BYTES in routes/correspondence.py
+    # for the per-file limit.
+    MAX_CONTENT_LENGTH = 50 * 1024 * 1024
     UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(BASE_DIR, "instance", "uploads"))
 
     FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173")
 
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = False
+
+    # Email notifications (submission received, forwarded to your department).
+    # SMTP_HOST left blank means "not configured" — the email service then
+    # just logs what it would have sent instead of failing, so the rest of
+    # the app works fine even before real credentials are added here.
+    SMTP_HOST = os.environ.get("SMTP_HOST", "")
+    SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+    SMTP_USER = os.environ.get("SMTP_USER", "")
+    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+    SMTP_FROM = os.environ.get("SMTP_FROM", "")

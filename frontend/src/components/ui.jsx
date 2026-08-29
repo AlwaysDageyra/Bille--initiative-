@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 
 export function Card({ children, className = "", ...props }) {
   return (
-    <div className={`rounded-2xl border border-slate-200/70 bg-white shadow-sm ${className}`} {...props}>
+    <div className={`rounded-2xl border border-black/[0.06] bg-white dark:bg-ink-900 shadow-sm ${className}`} {...props}>
       {children}
     </div>
   );
@@ -11,10 +11,10 @@ export function Card({ children, className = "", ...props }) {
 export function Button({ children, variant = "primary", className = "", ...props }) {
   const variants = {
     primary:
-      "bg-gradient-to-b from-gold-400 to-gold-500 text-ink-950 shadow-md shadow-gold-500/25 hover:shadow-lg hover:shadow-gold-500/30 hover:-translate-y-0.5 active:translate-y-0",
+      "bg-gold-500 text-white shadow-sm hover:bg-gold-600 hover:-translate-y-0.5 active:translate-y-0",
     secondary:
-      "bg-white text-ink-900 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 hover:-translate-y-0.5 active:translate-y-0",
-    ghost: "bg-transparent text-slate-500 hover:bg-slate-100",
+      "bg-white dark:bg-ink-900 text-ink-900 dark:text-white ring-1 ring-inset ring-ink-900/15 hover:bg-black/[0.02] hover:-translate-y-0.5 active:translate-y-0",
+    ghost: "bg-transparent text-slate-500 dark:text-white/50 hover:bg-slate-100 dark:hover:bg-white/10",
     danger:
       "bg-red-600 text-white shadow-md shadow-red-600/25 hover:bg-red-500 hover:-translate-y-0.5 active:translate-y-0",
   };
@@ -32,12 +32,12 @@ export function EmptyState({ icon: Icon, title, subtitle }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
       {Icon && (
-        <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400">
+        <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 dark:bg-white/10 text-slate-400 dark:text-white/35">
           <Icon size={20} />
         </div>
       )}
-      <p className="font-semibold text-slate-600">{title}</p>
-      {subtitle && <p className="max-w-sm text-sm text-slate-400">{subtitle}</p>}
+      <p className="font-semibold text-slate-600 dark:text-white/65">{title}</p>
+      {subtitle && <p className="max-w-sm text-sm text-slate-400 dark:text-white/35">{subtitle}</p>}
     </div>
   );
 }
@@ -55,13 +55,13 @@ export function StatCard({ icon: Icon, label, value, accent = "gold", delay = 0 
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay, ease: [0.16, 1, 0.3, 1] }}
-      className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm"
+      className="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white dark:bg-ink-900 p-5 shadow-sm"
     >
       <div className={`mb-3 grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br ${accents[accent]}`}>
         <Icon size={18} strokeWidth={2.25} />
       </div>
-      <p className="text-2xl font-extrabold tracking-tight text-ink-900">{value}</p>
-      <p className="text-sm text-slate-500">{label}</p>
+      <p className="font-serif text-2xl font-semibold tracking-tight text-ink-900 dark:text-white">{value}</p>
+      <p className="text-sm text-slate-500 dark:text-white/50">{label}</p>
     </motion.div>
   );
 }
@@ -83,7 +83,7 @@ export function PageTransition({ children, transitionKey }) {
 export function Spinner({ className = "" }) {
   return (
     <div className={`grid min-h-[40vh] place-items-center ${className}`}>
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-gold-500" />
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 dark:border-white/10 border-t-gold-500" />
     </div>
   );
 }

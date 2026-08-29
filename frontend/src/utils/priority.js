@@ -13,6 +13,22 @@ export function isOverdue(deadlineStr, status) {
   return d < today;
 }
 
+// A department's SLA is measured from when a letter was routed to it, not
+// from its own stated deadline — an internal ops target, separate from
+// whatever the sender asked for.
+export function slaStatus(routedAt, slaDays) {
+  if (!routedAt || !slaDays) return null;
+  const routed = new Date(routedAt);
+  if (Number.isNaN(routed.getTime())) return null;
+
+  const target = new Date(routed);
+  target.setDate(target.getDate() + slaDays);
+
+  const msPerDay = 86400000;
+  const daysLeft = Math.ceil((target - new Date()) / msPerDay);
+  return { target, daysLeft, overdue: daysLeft < 0 };
+}
+
 const URGENCY_RANK = { High: 0, Medium: 1, Low: 2 };
 
 export function sortByPriority(items) {

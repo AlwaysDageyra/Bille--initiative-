@@ -10,9 +10,14 @@ from app.extensions import db
 from app.models import User, Department, ROLE_SUBMITTER, ROLE_COORDINATOR, ROLE_DEPT_MANAGER, ROLE_ADMIN
 
 DEPARTMENTS = [
-    ("Administration & HR", "Staff requests, leave applications, internal memos, official letters, circulars"),
-    ("Finance", "Payment requests, budget requests, financial correspondence, supplier payment letters"),
-    ("Procurement", "Supplier letters, tender-related requests, clarification requests, bid correspondence"),
+    # Kept short and keyword-style on purpose — these feed directly into the
+    # AI extraction prompt to help it recommend a department when the letter
+    # never names one explicitly. Longer, sentence-style descriptions were
+    # tested and found to measurably confuse the (small, local) LLM on
+    # unrelated parts of the same extraction, like document type.
+    ("Administration & HR", "staff, leave, payroll, personnel, internal memos, recruitment, attendance"),
+    ("Finance", "budget, payment, invoices, funds, audit, expenses, disbursement"),
+    ("Procurement", "suppliers, supply, tenders, bids, quotations, purchase orders, vendors"),
 ]
 
 DEMO_PASSWORD = "password123"

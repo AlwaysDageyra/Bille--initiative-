@@ -7,6 +7,7 @@ import SubmitterDashboard from "./pages/SubmitterDashboard";
 import MySubmissions from "./pages/MySubmissions";
 import CoordinatorDashboard from "./pages/CoordinatorDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
+import NewArrivals from "./pages/NewArrivals";
 import ApprovalQueue from "./pages/ApprovalQueue";
 import Analytics from "./pages/Analytics";
 import Account from "./pages/Account";
@@ -36,6 +37,12 @@ function RequireAdmin({ children }) {
 function RequireSubmitter({ children }) {
   const { user } = useAuth();
   if (user.role !== "submitter") return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
+function RequireDeptManager({ children }) {
+  const { user } = useAuth();
+  if (user.role !== "dept_manager") return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -81,6 +88,16 @@ export default function App() {
             <RequireCoordinator>
               <ApprovalQueue />
             </RequireCoordinator>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/arrivals"
+        element={
+          <RequireAuth>
+            <RequireDeptManager>
+              <NewArrivals />
+            </RequireDeptManager>
           </RequireAuth>
         }
       />

@@ -3,9 +3,10 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, LogOut, Sparkles, Inbox, ClipboardCheck, Building2,
-  BarChart3, Settings, Users, ShieldCheck,
+  BarChart3, Settings, Users, ShieldCheck, Sun, Moon,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { api } from "../api";
 import { PageTransition } from "./ui";
 
@@ -16,12 +17,27 @@ const ROLE_META = {
   admin: { label: "Admin", icon: ShieldCheck },
 };
 
+function ThemeToggle({ className = "" }) {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      className={`grid h-8 w-8 flex-none place-items-center rounded-lg text-slate-400 transition hover:bg-white/10 hover:text-white ${className}`}
+    >
+      {isDark ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
+  );
+}
+
 function NavLink({ to, active, children }) {
   return (
     <Link
       to={to}
       className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-        active ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
+        active ? "bg-white/10 text-white" : "text-slate-400 dark:text-white/35 hover:bg-white/5 hover:text-white"
       }`}
     >
       {children}
@@ -56,18 +72,19 @@ export default function Layout({ children }) {
   const initials = user?.username?.slice(0, 2).toUpperCase();
 
   return (
-    <div className="flex min-h-screen bg-[#f4f6fb]">
+    <div className="flex min-h-screen bg-[#f6f1e8] dark:bg-[#0d0c09]">
       <aside className="sidebar-scroll fixed inset-y-0 hidden w-64 flex-col overflow-y-auto bg-gradient-to-b from-ink-950 to-ink-900 text-slate-200 md:flex print:hidden">
-        <div className="px-6 pb-6 pt-7">
+        <div className="flex items-center justify-between px-6 pb-6 pt-7">
           <Link to="/dashboard" className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-ink-950 shadow-lg shadow-gold-500/20">
               <Sparkles size={18} strokeWidth={2.5} />
             </span>
             <div className="leading-tight">
-              <p className="font-extrabold tracking-tight text-white">GovFlow AI</p>
-              <p className="text-[11px] text-slate-400">Correspondence &amp; Action</p>
+              <p className="font-serif font-semibold tracking-tight text-white">GovFlow AI</p>
+              <p className="text-[11px] text-slate-400 dark:text-white/35">Correspondence &amp; Action</p>
             </div>
           </Link>
+          <ThemeToggle />
         </div>
 
         <nav className="flex-1 space-y-1 px-3">
@@ -87,16 +104,22 @@ export default function Layout({ children }) {
               <NavLink to="/dashboard" active={location.pathname === "/dashboard"}>
                 <LayoutDashboard size={17} />
                 <span className="flex-1">Dashboard</span>
-                {user?.role === "dept_manager" && newRoutedCount > 0 && (
-                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-gold-500 px-1 text-[11px] font-bold text-ink-950">
-                    {newRoutedCount}
-                  </span>
-                )}
               </NavLink>
+              {user?.role === "dept_manager" && (
+                <NavLink to="/arrivals" active={location.pathname === "/arrivals"}>
+                  <Inbox size={17} />
+                  <span className="flex-1">New Arrivals</span>
+                  {newRoutedCount > 0 && (
+                    <span className="grid h-5 min-w-5 place-items-center rounded-full bg-gold-500 px-1 text-[11px] font-bold text-ink-950">
+                      {newRoutedCount}
+                    </span>
+                  )}
+                </NavLink>
+              )}
               {user?.role === "coordinator" && (
                 <NavLink to="/queue" active={location.pathname === "/queue"}>
                   <ClipboardCheck size={17} />
-                  <span className="flex-1">Approval Queue</span>
+                  <span className="flex-1">Review Queue</span>
                   {pendingCount > 0 && (
                     <span className="grid h-5 min-w-5 place-items-center rounded-full bg-gold-500 px-1 text-[11px] font-bold text-ink-950">
                       {pendingCount}
@@ -133,7 +156,7 @@ export default function Layout({ children }) {
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-white">{user.username}</p>
-                  <p className="truncate text-[11px] text-slate-400">
+                  <p className="truncate text-[11px] text-slate-400 dark:text-white/35">
                     {meta?.label}
                     {user.department_name ? ` · ${user.department_name}` : ""}
                   </p>
@@ -152,14 +175,17 @@ export default function Layout({ children }) {
 
       <div className="flex-1 md:pl-64 print:pl-0">
         <header className="flex items-center justify-between bg-ink-950 px-4 py-3 text-white md:hidden print:hidden">
-          <Link to="/dashboard" className="flex items-center gap-2 font-bold">
+          <Link to="/dashboard" className="flex items-center gap-2 font-serif font-semibold">
             <Sparkles size={16} className="text-gold-400" /> GovFlow AI
           </Link>
-          {user && (
-            <button onClick={handleLogout} aria-label="Log out">
-              <LogOut size={18} />
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            <ThemeToggle className="hover:bg-white/10" />
+            {user && (
+              <button onClick={handleLogout} aria-label="Log out" className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10">
+                <LogOut size={18} />
+              </button>
+            )}
+          </div>
         </header>
         <main className="mx-auto max-w-6xl px-5 py-8 md:px-10 md:py-10">
           <AnimatePresence mode="wait">

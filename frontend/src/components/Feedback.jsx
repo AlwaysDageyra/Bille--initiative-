@@ -9,9 +9,9 @@ let idCounter = 0;
 
 const ICONS = { success: CheckCircle2, error: XCircle, info: Info };
 const TOAST_STYLES = {
-  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  error: "border-red-200 bg-red-50 text-red-700",
-  info: "border-blue-200 bg-blue-50 text-blue-700",
+  success: "border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300",
+  error: "border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300",
+  info: "border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300",
 };
 
 export function FeedbackProvider({ children }) {
@@ -94,14 +94,14 @@ export function FeedbackProvider({ children }) {
                 exit={{ opacity: 0, y: 8, scale: 0.97 }}
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+                className="w-full max-w-sm rounded-2xl bg-white dark:bg-ink-900 p-6 shadow-xl"
               >
-                <h3 className="font-bold text-ink-900">{confirmState.title}</h3>
-                {confirmState.message && <p className="mt-2 text-sm text-slate-500">{confirmState.message}</p>}
+                <h3 className="font-bold text-ink-900 dark:text-white">{confirmState.title}</h3>
+                {confirmState.message && <p className="mt-2 text-sm text-slate-500 dark:text-white/50">{confirmState.message}</p>}
                 <div className="mt-5 flex justify-end gap-3">
                   <button
                     onClick={() => resolveConfirm(false)}
-                    className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 transition hover:bg-slate-100"
+                    className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 dark:text-white/50 transition hover:bg-slate-100 dark:hover:bg-white/10"
                   >
                     Cancel
                   </button>
@@ -110,7 +110,7 @@ export function FeedbackProvider({ children }) {
                     className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
                       confirmState.danger
                         ? "bg-red-600 text-white hover:bg-red-500"
-                        : "bg-gradient-to-b from-gold-400 to-gold-500 text-ink-950 hover:shadow-md"
+                        : "bg-gold-500 text-white hover:bg-gold-600"
                     }`}
                   >
                     {confirmState.confirmLabel || "Confirm"}

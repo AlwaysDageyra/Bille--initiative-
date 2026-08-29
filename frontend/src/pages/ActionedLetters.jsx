@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Building2, Send, RefreshCw, CheckCircle2, AlertTriangle, ArrowRight, IdCard } from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertTriangle, ArrowRight, IdCard, History } from "lucide-react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
-import StatusBadge, { STATUS_OPTIONS } from "../components/StatusBadge";
+import StatusBadge from "../components/StatusBadge";
 import { Card, EmptyState, StatCard } from "../components/ui";
 import {
   SearchInput, Select, Pagination, OverdueTag, usePagedResult,
@@ -13,9 +13,12 @@ import {
 import { sortByPriority, isOverdue, slaStatus } from "../utils/priority";
 
 const PAGE_SIZE = 8;
-const QUEUE_STATUS_OPTIONS = STATUS_OPTIONS.filter((o) => ["routed", "in_progress", "closed"].includes(o.value));
+const STATUS_OPTIONS = [
+  { value: "in_progress", label: "In Progress" },
+  { value: "closed", label: "Closed" },
+];
 
-function QueueItem({ item, index, slaDays }) {
+function ActionedItem({ item, index, slaDays }) {
   const urgencyStyle = URGENCY_STYLES[item.urgency] || DEFAULT_URGENCY_STYLE;
   const overdue = isOverdue(item.deadline, item.status);
   const sla = item.status !== "closed" ? slaStatus(item.routed_at, slaDays) : null;
@@ -25,13 +28,13 @@ function QueueItem({ item, index, slaDays }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.4) }}
-      className={`flex flex-col gap-4 border-l-4 bg-white dark:bg-ink-900 p-5 transition-colors hover:bg-slate-50 dark:hover:bg-white/5/70 sm:flex-row sm:items-center sm:justify-between ${urgencyStyle.border}`}
+      className={`flex flex-col gap-4 border-l-4 bg-white dark:bg-ink-900 p-5 transition-colors hover:bg-slate-50 dark:hover:bg-white/5 sm:flex-row sm:items-center sm:justify-between ${urgencyStyle.border}`}
     >
       <div className="flex min-w-0 items-start gap-3.5">
         <Avatar name={item.sender} />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate font-semibold text-ink-900 dark:text-white">{item.subject}</p>
+            <p className="truncate font-semibold text-ink-900 dark:text-white">{item.subject || "(no subject)"}</p>
             {overdue && <OverdueTag />}
           </div>
           <p className="mt-1 truncate text-sm text-slate-500 dark:text-white/50">
@@ -74,7 +77,7 @@ function QueueItem({ item, index, slaDays }) {
   );
 }
 
-export default function ManagerDashboard() {
+export default function ActionedLetters() {
   const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -90,18 +93,21 @@ export default function ManagerDashboard() {
   const ownDepartment = departments.find((d) => d.id === user.department_id);
   const slaDays = ownDepartment?.sla_days || null;
 
-  const sorted = useMemo(() => sortByPriority(items), [items]);
+  // "New Arrivals" owns the routed-but-not-started letters; this page is
+  // specifically for what's already been picked up — never shows "routed".
+  const actioned = useMemo(
+    () => sortByPriority(items.filter((c) => c.status === "in_progress" || c.status === "closed")),
+    [items]
+  );
 
   const stats = {
-    total: items.length,
-    routed: items.filter((c) => c.status === "routed").length,
-    inProgress: items.filter((c) => c.status === "in_progress").length,
-    closed: items.filter((c) => c.status === "closed").length,
-    overdue: items.filter((c) => isOverdue(c.deadline, c.status)).length,
+    inProgress: actioned.filter((c) => c.status === "in_progress").length,
+    closed: actioned.filter((c) => c.status === "closed").length,
+    overdue: actioned.filter((c) => isOverdue(c.deadline, c.status)).length,
   };
 
   const filtered = useMemo(() => {
-    return sorted.filter((c) => {
+    return actioned.filter((c) => {
       if (statusFilter && c.status !== statusFilter) return false;
       if (search) {
         const q = search.toLowerCase();
@@ -110,41 +116,39 @@ export default function ManagerDashboard() {
       }
       return true;
     });
-  }, [sorted, statusFilter, search]);
+  }, [actioned, statusFilter, search]);
 
   const { pageItems, pageCount, safePage } = usePagedResult(filtered, page, PAGE_SIZE);
 
   return (
     <div>
       <div className="mb-7">
-        <h1 className="text-2xl font-extrabold tracking-tight text-ink-900 dark:text-white">{user.department_name} Queue</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-white/50">Correspondence forwarded to your department, sorted by priority.</p>
+        <h1 className="text-2xl font-extrabold tracking-tight text-ink-900 dark:text-white">In Progress &amp; Closed</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-white/50">Letters your department has already picked up — being worked on or resolved.</p>
       </div>
 
-      <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-5">
-        <StatCard icon={Building2} label="In queue" value={stats.total} accent="gold" delay={0} />
-        <StatCard icon={Send} label="Newly forwarded" value={stats.routed} accent="blue" delay={0.05} />
-        <StatCard icon={RefreshCw} label="In progress" value={stats.inProgress} accent="purple" delay={0.1} />
-        <StatCard icon={AlertTriangle} label="Overdue" value={stats.overdue} accent="red" delay={0.15} />
-        <StatCard icon={CheckCircle2} label="Closed" value={stats.closed} accent="emerald" delay={0.2} />
+      <div className="mb-8 grid grid-cols-2 gap-4 md:w-3/4 md:grid-cols-3">
+        <StatCard icon={RefreshCw} label="In progress" value={stats.inProgress} accent="purple" delay={0} />
+        <StatCard icon={AlertTriangle} label="Overdue" value={stats.overdue} accent="red" delay={0.05} />
+        <StatCard icon={CheckCircle2} label="Closed" value={stats.closed} accent="emerald" delay={0.1} />
       </div>
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search subject, sender..." />
-        <Select value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }} placeholder="All statuses" options={QUEUE_STATUS_OPTIONS} />
+        <Select value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }} placeholder="In Progress or Closed" options={STATUS_OPTIONS} />
       </div>
 
       <Card className="overflow-hidden">
         <div className="divide-y divide-slate-100 dark:divide-white/10">
           {pageItems.map((item, i) => (
-            <QueueItem key={item.id} item={item} index={i} slaDays={slaDays} />
+            <ActionedItem key={item.id} item={item} index={i} slaDays={slaDays} />
           ))}
         </div>
         {filtered.length === 0 && (
           <EmptyState
-            icon={Building2}
-            title={items.length === 0 ? "Nothing forwarded to your department yet" : "No matches"}
-            subtitle={items.length > 0 ? "Try a different search or filter." : undefined}
+            icon={History}
+            title={actioned.length === 0 ? "Nothing actioned yet" : "No matches"}
+            subtitle={actioned.length > 0 ? "Try a different search or filter." : "Letters you've marked In Progress or Closed will show up here."}
           />
         )}
         <Pagination page={safePage} pageCount={pageCount} onChange={setPage} total={filtered.length} pageSize={PAGE_SIZE} />

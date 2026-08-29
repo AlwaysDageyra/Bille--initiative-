@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Sparkles, ScanSearch, Route, History, ArrowRight } from "lucide-react";
+import { Sparkles, ScanSearch, Send, History, ArrowRight, Sun, Moon } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { Button } from "../components/ui";
 
 const DEMO_ACCOUNTS = [
@@ -16,12 +17,14 @@ const DEMO_ACCOUNTS = [
 
 const FEATURES = [
   { icon: ScanSearch, title: "AI-Powered Extraction", text: "Ollama reads every letter and pulls subject, sender, deadline and required action automatically." },
-  { icon: Route, title: "Smart Department Routing", text: "The AI recommends the right department; your coordinator confirms before anything is sent." },
-  { icon: History, title: "Full Action History", text: "Every review, route and status change is logged so nothing gets lost in the process." },
+  { icon: Send, title: "Smart Department Forwarding", text: "The AI recommends the right department; your coordinator confirms before anything is sent." },
+  { icon: History, title: "Full Action History", text: "Every review, forwarding and status change is logged so nothing gets lost in the process." },
 ];
 
 export default function Login() {
   const { login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -43,35 +46,47 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f4f6fb]">
+    <div className="relative flex min-h-screen bg-[#f6f1e8] dark:bg-[#0d0c09]">
+      <button
+        type="button"
+        onClick={toggleTheme}
+        aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+        className="absolute right-5 top-5 z-20 grid h-9 w-9 place-items-center rounded-full bg-black/5 text-ink-900 transition hover:bg-black/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+      >
+        {isDark ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
       {/* Hero panel */}
       <div className="relative hidden w-1/2 overflow-hidden bg-gradient-to-br from-ink-950 via-ink-900 to-ink-800 lg:flex lg:flex-col lg:justify-between">
-        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-gold-500/20 blur-3xl" />
-        <div className="pointer-events-none absolute -right-16 bottom-10 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-gold-500/15 blur-3xl" />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{ backgroundImage: "repeating-linear-gradient(transparent, transparent 27px, rgba(255,255,255,0.7) 28px)" }}
+        />
+        <span className="pointer-events-none absolute -right-6 bottom-6 select-none font-serif text-[220px] italic leading-none text-white/[0.06]">&amp;</span>
 
         <div className="relative z-10 px-14 pt-14">
           <div className="flex items-center gap-2.5">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-ink-950 shadow-lg shadow-gold-500/30">
               <Sparkles size={20} strokeWidth={2.5} />
             </span>
-            <span className="text-lg font-extrabold tracking-tight text-white">GovFlow AI</span>
+            <span className="font-serif text-lg font-semibold tracking-tight text-white">GovFlow AI</span>
           </div>
 
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-16 max-w-md text-4xl font-extrabold leading-tight tracking-tight text-white"
+            className="mt-16 max-w-md text-4xl font-serif font-medium leading-[1.15] tracking-tight text-white"
           >
-            Correspondence, handled <span className="text-gold-400">faster</span> and with confidence.
+            Correspondence, handled <span className="italic text-gold-400">faster</span> and with confidence.
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-4 max-w-sm text-slate-400"
+            className="mt-4 max-w-sm text-slate-400 dark:text-white/35"
           >
-            From intake to routing to action — GovFlow AI keeps every letter, memo and notice moving through the right hands.
+            From intake to forwarding to action — GovFlow AI keeps every letter, memo and notice moving through the right hands.
           </motion.p>
         </div>
 
@@ -89,7 +104,7 @@ export default function Login() {
               </span>
               <div>
                 <p className="text-sm font-semibold text-white">{f.title}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-slate-400">{f.text}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-slate-400 dark:text-white/35">{f.text}</p>
               </div>
             </motion.div>
           ))}
@@ -110,27 +125,27 @@ export default function Login() {
               <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-ink-950">
                 <Sparkles size={18} strokeWidth={2.5} />
               </span>
-              <span className="text-lg font-extrabold tracking-tight text-ink-900">GovFlow AI</span>
+              <span className="font-serif text-lg font-semibold tracking-tight text-ink-900 dark:text-white">GovFlow AI</span>
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold tracking-tight text-ink-900">Welcome back</h2>
-          <p className="mt-1 text-sm text-slate-500">Sign in to continue to your dashboard.</p>
+          <h2 className="font-serif text-3xl font-medium tracking-tight text-ink-900 dark:text-white">Welcome back</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-white/50">Sign in to continue to your dashboard.</p>
 
-          <label className="mt-7 block text-sm font-medium text-ink-900">
+          <label className="mt-7 block text-sm font-medium text-ink-900 dark:text-white">
             Username
             <input
-              className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-gold-500 focus:ring-4 focus:ring-gold-500/15"
+              className="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-white/15 px-3.5 py-2.5 text-sm outline-none transition focus:border-gold-500 focus:ring-4 focus:ring-gold-500/15"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoFocus
             />
           </label>
-          <label className="mt-4 block text-sm font-medium text-ink-900">
+          <label className="mt-4 block text-sm font-medium text-ink-900 dark:text-white">
             Password
             <input
               type="password"
-              className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-gold-500 focus:ring-4 focus:ring-gold-500/15"
+              className="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-white/15 px-3.5 py-2.5 text-sm outline-none transition focus:border-gold-500 focus:ring-4 focus:ring-gold-500/15"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -142,8 +157,8 @@ export default function Login() {
             {submitting ? "Logging in..." : "Log in"} {!submitting && <ArrowRight size={16} />}
           </Button>
 
-          <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-semibold text-slate-500">Demo accounts &middot; click to fill</p>
+          <div className="mt-8 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-4">
+            <p className="text-xs font-semibold text-slate-500 dark:text-white/50">Demo accounts &middot; click to fill</p>
             <ul className="mt-2 space-y-0.5">
               {DEMO_ACCOUNTS.map((acc) => (
                 <li key={acc.username}>
@@ -153,9 +168,9 @@ export default function Login() {
                       setUsername(acc.username);
                       setPassword("password123");
                     }}
-                    className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs text-slate-500 transition hover:bg-white hover:text-ink-900"
+                    className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs text-slate-500 dark:text-white/50 transition hover:bg-white hover:text-ink-900 dark:hover:bg-white/10 dark:hover:text-white"
                   >
-                    <code className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] text-ink-900">{acc.username}</code>
+                    <code className="rounded border border-slate-300 dark:border-white/15 bg-white dark:bg-ink-900 px-1.5 py-0.5 text-[11px] text-ink-900 dark:text-white">{acc.username}</code>
                     <span className="text-right">{acc.label}</span>
                   </button>
                 </li>

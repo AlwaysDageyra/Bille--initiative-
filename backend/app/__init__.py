@@ -42,6 +42,6 @@ def create_app(config_class=Config):
 
     @app.errorhandler(413)
     def file_too_large(_exc):
-        return jsonify({"error": "File is too large. Maximum upload size is 10 MB."}), 413
+        return jsonify({"error": "Upload is too large. Each file has a 10 MB limit, and a submission holds up to 10 files."}), 413
 
     return app

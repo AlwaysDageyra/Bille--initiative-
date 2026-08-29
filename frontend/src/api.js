@@ -30,9 +30,9 @@ export const api = {
 
   listCorrespondence: () => request("/correspondence"),
   getCorrespondence: (id) => request(`/correspondence/${id}`),
-  createCorrespondence: (file) => {
+  createCorrespondence: (files) => {
     const formData = new FormData();
-    formData.append("file", file);
+    for (const file of files) formData.append("files", file);
     return request("/correspondence", { method: "POST", body: formData });
   },
   replaceCorrespondence: (id, file) => {
@@ -52,6 +52,10 @@ export const api = {
     request(`/correspondence/${id}/bounce`, { method: "POST", body: JSON.stringify({ note }) }),
   addFollowup: (id, note) =>
     request(`/correspondence/${id}/followup`, { method: "POST", body: JSON.stringify({ note }) }),
+  sendFeedback: (id, note) =>
+    request(`/correspondence/${id}/feedback`, { method: "POST", body: JSON.stringify({ note }) }),
+  addInternalNote: (id, note) =>
+    request(`/correspondence/${id}/internal-note`, { method: "POST", body: JSON.stringify({ note }) }),
 
   changePassword: (current_password, new_password) =>
     request("/auth/change-password", { method: "POST", body: JSON.stringify({ current_password, new_password }) }),

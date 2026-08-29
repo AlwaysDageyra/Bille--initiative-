@@ -22,10 +22,17 @@ def call_ollama_json(prompt: str) -> dict:
         "messages": [{"role": "user", "content": prompt}],
         "stream": False,
         "format": "json",
+        "options": {"temperature": 0, "seed": 42},
+        
+        "keep_alive": "-1",
     }
 
     try:
-        resp = requests.post(f"{host}/api/chat", json=payload, timeout=120)
+        # Measured generation alone taking 20-60s+ on this CPU-only setup, and
+        # multiple submissions can queue on Ollama's single inference slot at
+        # once (e.g. a multi-file batch upload) — 120s wasn't enough headroom
+        # and caused a real, observed spurious timeout failure.
+        resp = requests.post(f"{host}/api/chat", json=payload, timeout=300)
         resp.raise_for_status()
     except requests.RequestException as exc:
         raise OllamaError(f"Could not reach Ollama at {host}: {exc}") from exc
