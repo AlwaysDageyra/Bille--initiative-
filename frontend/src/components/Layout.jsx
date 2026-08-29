@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, LogOut, Sparkles, Inbox, ClipboardCheck, Building2,
-  BarChart3, Settings, Users, ShieldCheck, Sun, Moon,
+  BarChart3, Settings, Users, ShieldCheck, Sun, Moon, History,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -114,6 +114,12 @@ export default function Layout({ children }) {
                       {newRoutedCount}
                     </span>
                   )}
+                </NavLink>
+              )}
+              {user?.role === "dept_manager" && (
+                <NavLink to="/actioned" active={location.pathname === "/actioned"}>
+                  <History size={17} />
+                  In Progress &amp; Closed
                 </NavLink>
               )}
               {user?.role === "coordinator" && (

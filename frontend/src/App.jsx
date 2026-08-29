@@ -8,6 +8,7 @@ import MySubmissions from "./pages/MySubmissions";
 import CoordinatorDashboard from "./pages/CoordinatorDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import NewArrivals from "./pages/NewArrivals";
+import ActionedLetters from "./pages/ActionedLetters";
 import ApprovalQueue from "./pages/ApprovalQueue";
 import Analytics from "./pages/Analytics";
 import Account from "./pages/Account";
@@ -97,6 +98,16 @@ export default function App() {
           <RequireAuth>
             <RequireDeptManager>
               <NewArrivals />
+            </RequireDeptManager>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/actioned"
+        element={
+          <RequireAuth>
+            <RequireDeptManager>
+              <ActionedLetters />
             </RequireDeptManager>
           </RequireAuth>
         }
